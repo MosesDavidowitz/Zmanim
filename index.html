@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Shabbos Message Generator</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ece5dd;
+    margin: 0;
+    padding: 16px;
+    color: #222;
+  }
+  .container { max-width: 480px; margin: 0 auto; }
+  h1 {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 10px 0 4px;
+    color: #444;
+  }
+  input, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  button {
+    border: none;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn-fetch { background: #2563eb; color: #fff; width: 100%; }
+  .btn-shuffle { background: #eee; color: #333; font-size: 13px; padding: 6px 10px; margin-top: 6px; }
+  .btn-copy { background: #25D366; color: #fff; width: 100%; font-size: 16px; padding: 12px; }
+  .status { font-size: 12px; color: #666; margin-top: 8px; min-height: 14px; }
+  .preview {
+    background: #e5ffd9;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .preview b { font-weight: 700; }
+  .preview .quoteline {
+    border-left: 3px solid #999;
+    padding-left: 8px;
+    color: #555;
+    display: block;
+    margin-top: 2px;
+  }
+  .copied-msg {
+    text-align: center;
+    font-size: 13px;
+    color: #25D366;
+    font-weight: 600;
+    height: 18px;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌼 Git Shabbos Message 🌼</h1>
+
+  <div class="card">
+    <button class="btn-fetch" id="fetchBtn">🔄 Auto-fetch Parsha, Zmanim &amp; Weather</button>
+    <div class="status" id="status"></div>
+
+    <label for="parsha">Parsha (Hebrew)</label>
+    <input type="text" id="parsha" value="">
+
+    <div class="row">
+      <div>
+        <label for="high">High °F</label>
+        <input type="text" id="high" value="">
+      </div>
+      <div>
+        <label for="low">Low °F</label>
+        <input type="text" id="low" value="">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="candle">Candle Lighting</label>
+        <input type="text" id="candle" value="">
+      </div>
+      <div>
+        <label for="motzei">Motzei Shabbos</label>
+        <input type="text" id="motzei" value="">
+      </div>
+    </div>
+
+    <label for="quote">Quote</label>
+    <textarea id="quote"></textarea>
+    <button class="btn-shuffle" id="shuffleBtn">🔀 Shuffle Quote</button>
+  </div>
+
+  <div class="card">
+    <label style="margin-top:0;">Preview</label>
+    <div class="preview" id="preview"></div>
+    <button class="btn-copy" id="copyBtn">📋 Copy for WhatsApp</button>
+    <div class="copied-msg" id="copiedMsg"></div>
+  </div>
+</div>
+
+<script>
+  var quotes = [
+    "Common sense is like deodorant. The people who need it most never seem to use it.",
+    "A smooth sea never made a skilled sailor.",
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
+    "Worry never robs tomorrow of its sorrow, it only saps today of its joy.",
+    "You can't control the wind, but you can adjust your sails.",
+    "Difficult roads often lead to beautiful destinations.",
+    "A little progress each day adds up to big results.",
+    "Gratitude turns what we have into enough.",
+    "The smallest act of kindness is worth more than the grandest intention.",
+    "Patience is not the ability to wait, but the ability to keep a good attitude while waiting.",
+    "What lies behind us and what lies before us are tiny matters compared to what lies within us.",
+    "Comparison is the thief of joy.",
+    "Be the reason someone smiles today.",
+    "Out of difficulties grow miracles.",
+    "Every accomplishment starts with the decision to try.",
+    "The way to get started is to quit talking and begin doing.",
+    "Happiness is not by chance, but by choice.",
+    "Don't watch the clock; do what it does. Keep going.",
+    "Tough times never last, but tough people do.",
+    "A grateful heart is a magnet for miracles.",
+    "Kindness is a language the deaf can hear and the blind can see.",
+    "It always seems impossible until it's done.",
+    "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+    "Believe you can and you're halfway there.",
+    "Small deeds done are better than great deeds planned.",
+    "Hope is being able to see that there is light despite all of the darkness.",
+    "Wherever you go, go with all your heart.",
+    "Peace begins with a smile.",
+    "We rise by lifting others.",
+    "Every sunset brings the promise of a new dawn."
+  ];
+
+  function pad(n) { return n < 10 ? "0" + n : n; }
+
+  function formatTimeFromIso(iso) {
+    // iso like 2026-06-19T20:09:00-04:00 -- read hours/minutes directly, ignore TZ conversion
+    var m = iso.match(/T(\d{2}):(\d{2})/);
+    if (!m) return "";
+    var h = parseInt(m[1], 10);
+    var min = m[2];
+    var h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return h12 + ":" + min;
+  }
+
+  function dateFromIso(iso) {
+    var m = iso.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : "";
+  }
+
+  function setStatus(msg) {
+    document.getElementById("status").textContent = msg;
+  }
+
+  function fetchAll() {
+    setStatus("Fetching zmanim & parsha...");
+    var hebcalUrl = "https://www.hebcal.com/shabbat/?cfg=json&zip=11219&M=on";
+
+    fetch(hebcalUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var items = data.items || [];
+        var candle = "", havdalah = "", parsha = "", havdalahDate = "";
+
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (it.category === "candles") {
+            candle = formatTimeFromIso(it.date);
+          } else if (it.category === "havdalah") {
+            havdalah = formatTimeFromIso(it.date);
+            havdalahDate = dateFromIso(it.date);
+          } else if (it.category === "parashat") {
+            parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
+          }
+        }
+
+        if (candle) document.getElementById("candle").value = candle;
+        if (havdalah) document.getElementById("motzei").value = havdalah;
+        if (parsha) document.getElementById("parsha").value = parsha;
+
+        setStatus("Got zmanim. Fetching weather...");
+
+        var weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=40.6304&longitude=-73.9980&daily=apparent_temperature_max,apparent_temperature_min&temperature_unit=fahrenheit&timezone=America%2FNew_York";
+
+        return fetch(weatherUrl)
+          .then(function(r) { return r.json(); })
+          .then(function(wdata) {
+            var idx = -1;
+            if (havdalahDate && wdata.daily && wdata.daily.time) {
+              idx = wdata.daily.time.indexOf(havdalahDate);
+            }
+            if (idx === -1) idx = 1; // fallback: tomorrow-ish
+            var hi = wdata.daily.apparent_temperature_max[idx];
+            var lo = wdata.daily.apparent_temperature_min[idx];
+            document.getElementById("high").value = Math.round(hi);
+            document.getElementById("low").value = Math.round(lo);
+            setStatus("Done! Review and edit anything that looks off.");
+          });
+      })
+      .catch(function(err) {
+        setStatus("Couldn't auto-fetch (offline or API issue). Please fill in manually.");
+      })
+      .finally(function() {
+        updatePreview();
+      });
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function updatePreview() {
+    var parsha = document.getElementById("parsha").value || "____";
+    var high = document.getElementById("high").value || "__";
+    var low = document.getElementById("low").value || "__";
+    var candle = document.getElementById("candle").value || "__:__";
+    var motzei = document.getElementById("motzei").value || "__:__";
+    var quote = document.getElementById("quote").value || "____";
+
+    var raw =
+"〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
+"         *🌼 A Git Shabbos 🌼*\n" +
+"〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
+"📜 *Parsha: " + parsha + "*\n\n" +
+"🌤️ *Weather (Brooklyn):*\n" +
+"Feel: High " + high + "°  Low " + low + "°\n\n" +
+"🕰 *Zmanim (Brooklyn):*\n" +
+"• Candle lighting: " + candle + "  \n" +
+"• Motzei Shabbos: " + motzei + "  \n\n" +
+"💬 *Quote:*\n" +
+"> " + quote;
+
+    // store raw text for copying
+    window.__rawMessage = raw;
+
+    // build HTML preview: bold *text*, blockquote for "> " lines
+    var html = escapeHtml(raw);
+    html = html.replace(/\*(.+?)\*/g, "<b>$1</b>");
+    html = html.replace(/^&gt; (.*)$/gm, '<span class="quoteline">$1</span>');
+
+    document.getElementById("preview").innerHTML = html;
+  }
+
+  function copyMessage() {
+    var text = window.__rawMessage || "";
+    var copiedMsg = document.getElementById("copiedMsg");
+
+    function showCopied() {
+      copiedMsg.textContent = "✅ Copied! Paste into WhatsApp.";
+      setTimeout(function() { copiedMsg.textContent = ""; }, 2500);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showCopied, function() {
+        fallbackCopy(text, showCopied);
+      });
+    } else {
+      fallbackCopy(text, showCopied);
+    }
+  }
+
+  function fallbackCopy(text, cb) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    if (cb) cb();
+  }
+
+  function shuffleQuote() {
+    var current = document.getElementById("quote").value;
+    var next = current;
+    while (next === current && quotes.length > 1) {
+      next = quotes[Math.floor(Math.random() * quotes.length)];
+    }
+    document.getElementById("quote").value = next;
+    updatePreview();
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // initialize with a random quote
+    document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
+
+    var fields = ["parsha", "high", "low", "candle", "motzei", "quote"];
+    for (var i = 0; i < fields.length; i++) {
+      document.getElementById(fields[i]).addEventListener("input", updatePreview);
+    }
+
+    document.getElementById("fetchBtn").addEventListener("click", fetchAll);
+    document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
+    document.getElementById("copyBtn").addEventListener("click", copyMessage);
+
+    updatePreview();
+    fetchAll();
+  });
+</script>
+</body>
+</html>
