@@ -317,6 +317,46 @@
 
   var FLOWERS = ["🌼", "🌸", "🌺", "🌻", "🌷", "🌹", "🪷", "💮"];
 
+  var remoteQuotes = [];
+
+  function fetchQuotes() {
+    if (location.protocol === "file:") return Promise.resolve();
+    return fetch("https://type.fit/api/quotes")
+      .then(function(r) {
+        if (!r.ok) throw new Error("Quotes API status " + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        remoteQuotes = data.filter(function(q) {
+          return q && q.text && q.text.length > 10 && q.text.length < 180;
+        });
+      })
+      .catch(function(err) {
+        // silently fall back to the local quote list
+      });
+  }
+
+  function getRandomQuoteText(excludeText) {
+    var pool = remoteQuotes.length > 0 ? remoteQuotes : null;
+    if (pool) {
+      var attempts = 0;
+      var text;
+      do {
+        var q = pool[Math.floor(Math.random() * pool.length)];
+        text = q.text.replace(/[\s-]+$/, "").trim();
+        attempts++;
+      } while (text === excludeText && attempts < 10);
+      return text;
+    }
+    var next = excludeText;
+    var tries = 0;
+    while (next === excludeText && tries < 10) {
+      next = quotes[Math.floor(Math.random() * quotes.length)];
+      tries++;
+    }
+    return next;
+  }
+
   function pad(n) { return n < 10 ? "0" + n : n; }
 
   function getTomorrowDateStr() {
@@ -559,11 +599,7 @@
 
   function shuffleQuote() {
     var current = document.getElementById("quote").value;
-    var next = current;
-    while (next === current && quotes.length > 1) {
-      next = quotes[Math.floor(Math.random() * quotes.length)];
-    }
-    document.getElementById("quote").value = next;
+    document.getElementById("quote").value = getRandomQuoteText(current);
     updatePreview();
   }
 
@@ -583,6 +619,11 @@
     document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear();
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
+
+    fetchQuotes().then(function() {
+      document.getElementById("quote").value = getRandomQuoteText();
+      updatePreview();
+    });
 
     var textFields = ["parsha", "additionalText", "highBK", "lowBK", "highMC", "lowMC",
                        "candleBK", "motzeiBK", "candleMC", "motzeiMC", "quote",
