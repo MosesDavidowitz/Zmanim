@@ -206,15 +206,15 @@
       <div>
         <label for="emojiBK">Icon</label>
         <select id="emojiBK">
-          <option value="☀️">☀️ Sunny</option>
-          <option value="🌤️">🌤️ Mostly Sunny</option>
-          <option value="⛅">⛅ Partly Cloudy</option>
-          <option value="☁️">☁️ Cloudy</option>
-          <option value="🌫️">🌫️ Fog</option>
-          <option value="🌧️">🌧️ Rain</option>
-          <option value="🌨️">🌨️ Snow Showers</option>
-          <option value="❄️">❄️ Snow</option>
-          <option value="⛈️">⛈️ Thunderstorm</option>
+          <option value="☀️|Sunny">☀️ Sunny</option>
+          <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
+          <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
+          <option value="☁️|Cloudy">☁️ Cloudy</option>
+          <option value="🌫️|Foggy">🌫️ Fog</option>
+          <option value="🌧️|Rainy">🌧️ Rain</option>
+          <option value="🌨️|Snow Showers">🌨️ Snow Showers</option>
+          <option value="❄️|Snowy">❄️ Snow</option>
+          <option value="⛈️|Thunderstorms">⛈️ Thunderstorm</option>
         </select>
       </div>
     </div>
@@ -244,15 +244,15 @@
       <div>
         <label for="emojiMC">Icon</label>
         <select id="emojiMC">
-          <option value="☀️">☀️ Sunny</option>
-          <option value="🌤️">🌤️ Mostly Sunny</option>
-          <option value="⛅">⛅ Partly Cloudy</option>
-          <option value="☁️">☁️ Cloudy</option>
-          <option value="🌫️">🌫️ Fog</option>
-          <option value="🌧️">🌧️ Rain</option>
-          <option value="🌨️">🌨️ Snow Showers</option>
-          <option value="❄️">❄️ Snow</option>
-          <option value="⛈️">⛈️ Thunderstorm</option>
+          <option value="☀️|Sunny">☀️ Sunny</option>
+          <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
+          <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
+          <option value="☁️|Cloudy">☁️ Cloudy</option>
+          <option value="🌫️|Foggy">🌫️ Fog</option>
+          <option value="🌧️|Rainy">🌧️ Rain</option>
+          <option value="🌨️|Snow Showers">🌨️ Snow Showers</option>
+          <option value="❄️|Snowy">❄️ Snow</option>
+          <option value="⛈️|Thunderstorms">⛈️ Thunderstorm</option>
         </select>
       </div>
     </div>
@@ -408,16 +408,16 @@
 
   // WMO weather code -> emoji
   function weatherEmoji(code) {
-    if (code === 0) return "☀️";
-    if (code === 1 || code === 2) return "🌤️";
-    if (code === 3) return "☁️";
-    if (code >= 45 && code <= 48) return "🌫️";
-    if (code >= 51 && code <= 67) return "🌧️";
-    if (code === 71 || code === 73 || code === 75 || code === 77) return "❄️";
-    if (code === 85 || code === 86) return "🌨️";
-    if (code >= 80 && code <= 82) return "🌧️";
-    if (code >= 95) return "⛈️";
-    return "🌤️";
+    if (code === 0) return "☀️|Sunny";
+    if (code === 1 || code === 2) return "🌤️|Mostly Sunny";
+    if (code === 3) return "☁️|Cloudy";
+    if (code >= 45 && code <= 48) return "🌫️|Foggy";
+    if (code >= 51 && code <= 67) return "🌧️|Rainy";
+    if (code === 71 || code === 73 || code === 75 || code === 77) return "❄️|Snowy";
+    if (code === 85 || code === 86) return "🌨️|Snow Showers";
+    if (code >= 80 && code <= 82) return "🌧️|Rainy";
+    if (code >= 95) return "⛈️|Thunderstorms";
+    return "🌤️|Mostly Sunny";
   }
 
   function fetchZmanim(zip) {
@@ -534,12 +534,18 @@
 
     var highBK = document.getElementById("highBK").value || "__";
     var lowBK = document.getElementById("lowBK").value || "__";
-    var emojiBK = document.getElementById("emojiBK").value || "🌤️";
+    var emojiValBK = document.getElementById("emojiBK").value || "🌤️|Mostly Sunny";
+    var emojiPartsBK = emojiValBK.split("|");
+    var emojiBK = emojiPartsBK[0];
+    var conditionBK = emojiPartsBK[1] || "";
 
     var addMonticello = document.getElementById("addMonticello").checked;
     var highMC = document.getElementById("highMC").value || "__";
     var lowMC = document.getElementById("lowMC").value || "__";
-    var emojiMC = document.getElementById("emojiMC").value || "🌤️";
+    var emojiValMC = document.getElementById("emojiMC").value || "🌤️|Mostly Sunny";
+    var emojiPartsMC = emojiValMC.split("|");
+    var emojiMC = emojiPartsMC[0];
+    var conditionMC = emojiPartsMC[1] || "";
 
     var candleBK = document.getElementById("candleBK").value || "__:__";
     var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
@@ -562,11 +568,11 @@
 "📜 *Parsha: " + parshaLine + "*\n";
 
     raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
-"Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
 
     if (addMonticello) {
       raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
-"Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
     }
 
     raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
