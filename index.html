@@ -389,7 +389,9 @@
       } else if (it.category === "parashat" && prefix === "BK") {
         parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
       } else if (it.category === "mevarchim" && prefix === "BK") {
-        document.getElementById("additionalText").value = "מברכים";
+        var monthMatch = (it.hebrew || "").match(/חודש\s+(.+)$/);
+        var monthName = monthMatch ? monthMatch[1] : "";
+        document.getElementById("additionalText").value = "מבה\u05f4ח " + monthName;
       }
     }
     if (candle) document.getElementById("candle" + prefix).value = candle;
