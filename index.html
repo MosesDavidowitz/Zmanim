@@ -310,7 +310,7 @@
   }
 
   function fetchZmanim(zip) {
-    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&M=on";
+    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&m=72";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
@@ -425,15 +425,16 @@
 
     var quote = document.getElementById("quote").value || "____";
 
+    var parshaLine = parsha;
+    if (addAdditional && additionalText) {
+      parshaLine += " - " + additionalText;
+    }
+
     var raw =
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
 "         *🌼 A Git Shabbos 🌼*\n" +
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
-"📜 *Parsha: " + parsha + "*\n";
-
-    if (addAdditional && additionalText) {
-      raw += additionalText + "\n";
-    }
+"📜 *Parsha: " + parshaLine + "*\n";
 
     raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
 "Feel: High " + highBK + "°  Low " + lowBK + "°\n";
