@@ -142,12 +142,19 @@
     height: 18px;
     margin-top: 6px;
   }
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+    margin: 8px 0 16px;
+    letter-spacing: 0.5px;
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header-banner">
-    <h1>A Git Shabbos</h1>
+    <h1>Zmanim Generator</h1>
     <div class="subtitle">Weekly Message Generator</div>
   </div>
 
@@ -172,7 +179,7 @@
   <div class="monticello-toggle">
     <div class="checkbox-row" style="margin-top:0;">
       <input type="checkbox" id="addMonticello">
-      <label for="addMonticello">Add Monticello (weather + zmanim)</label>
+      <label for="addMonticello">Add Monticello</label>
     </div>
   </div>
 
@@ -264,6 +271,8 @@
     <button class="btn-copy" id="copyBtn">📋 Copy for WhatsApp</button>
     <div class="copied-msg" id="copiedMsg"></div>
   </div>
+
+  <div class="footer" id="footer"></div>
 </div>
 
 <script>
@@ -351,7 +360,7 @@
   }
 
   function fetchZmanim(zip) {
-    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&m=72";
+    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&m=72&mvch=on";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
@@ -379,6 +388,8 @@
         havdalahDate = dateFromIso(it.date);
       } else if (it.category === "parashat" && prefix === "BK") {
         parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
+      } else if (it.category === "mevarchim" && prefix === "BK") {
+        document.getElementById("additionalText").value = "מברכים";
       }
     }
     if (candle) document.getElementById("candle" + prefix).value = candle;
@@ -388,12 +399,10 @@
   }
 
   function applyWeather(wdata, prefix) {
-    var tomorrow = getTomorrowDateStr();
-    var idx = -1;
-    if (wdata.daily && wdata.daily.time) {
-      idx = wdata.daily.time.indexOf(tomorrow);
+    var idx = 1; // index 0 = today, index 1 = tomorrow (Open-Meteo daily array, in requested timezone)
+    if (!wdata.daily || !wdata.daily.apparent_temperature_max || wdata.daily.apparent_temperature_max.length <= idx) {
+      idx = 0;
     }
-    if (idx === -1) idx = 1; // fallback
     var hi = wdata.daily.apparent_temperature_max[idx];
     var lo = wdata.daily.apparent_temperature_min[idx];
     var code = wdata.daily.weathercode[idx];
@@ -481,14 +490,16 @@
     raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
 "Feel: High " + highBK + "°  Low " + lowBK + "°\n";
 
+    if (addMonticello) {
+      raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
+"Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+    }
+
     raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
 "• Candle lighting: " + candleBK + "  \n" +
 "• Motzei Shabbos: " + motzeiBK + "  \n";
 
     if (addMonticello) {
-      raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
-"Feel: High " + highMC + "°  Low " + lowMC + "°\n";
-
       raw += "\n🕰 *Zmanim (Monticello):*\n" +
 "• Candle lighting: " + candleMC + "  \n" +
 "• Motzei Shabbos: " + motzeiMC + "  \n";
@@ -558,6 +569,8 @@
 
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
+
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear();
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
