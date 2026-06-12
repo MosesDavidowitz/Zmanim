@@ -33,13 +33,14 @@
     margin: 10px 0 4px;
     color: #444;
   }
-  input, textarea {
+  input[type="text"], textarea, select {
     width: 100%;
     padding: 8px 10px;
     font-size: 15px;
     border: 1px solid #ccc;
     border-radius: 6px;
     font-family: inherit;
+    background: #fff;
   }
   textarea { resize: vertical; min-height: 60px; }
   .row { display: flex; gap: 10px; }
@@ -57,6 +58,28 @@
   .btn-shuffle { background: #eee; color: #333; font-size: 13px; padding: 6px 10px; margin-top: 6px; }
   .btn-copy { background: #25D366; color: #fff; width: 100%; font-size: 16px; padding: 12px; }
   .status { font-size: 12px; color: #666; margin-top: 8px; min-height: 14px; }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+  .checkbox-row label {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .subsection {
+    border-left: 3px solid #25D366;
+    padding-left: 10px;
+    margin-top: 10px;
+    display: none;
+  }
+  .subsection.visible { display: block; }
   .preview {
     background: #e5ffd9;
     border-radius: 10px;
@@ -92,33 +115,113 @@
   <div class="card">
     <button class="btn-fetch" id="fetchBtn">🔄 Auto-fetch Parsha, Zmanim &amp; Weather</button>
     <div class="status" id="status"></div>
+  </div>
 
+  <div class="card">
     <label for="parsha">Parsha (Hebrew)</label>
     <input type="text" id="parsha" value="">
 
+    <div class="checkbox-row">
+      <input type="checkbox" id="addAdditional">
+      <label for="addAdditional">Add additional message</label>
+    </div>
+    <div class="subsection" id="additionalSection">
+      <label for="additionalText">Additional message (e.g. מבורכים)</label>
+      <input type="text" id="additionalText" value="">
+    </div>
+  </div>
+
+  <div class="card">
+    <label style="margin-top:0;">🌤️ Weather (Brooklyn)</label>
     <div class="row">
       <div>
-        <label for="high">High °F</label>
-        <input type="text" id="high" value="">
+        <label for="highBK">High °F</label>
+        <input type="text" id="highBK" value="">
       </div>
       <div>
-        <label for="low">Low °F</label>
-        <input type="text" id="low" value="">
+        <label for="lowBK">Low °F</label>
+        <input type="text" id="lowBK" value="">
+      </div>
+      <div>
+        <label for="emojiBK">Icon</label>
+        <select id="emojiBK">
+          <option value="☀️">☀️ Sunny</option>
+          <option value="🌤️">🌤️ Mostly Sunny</option>
+          <option value="⛅">⛅ Partly Cloudy</option>
+          <option value="☁️">☁️ Cloudy</option>
+          <option value="🌫️">🌫️ Fog</option>
+          <option value="🌧️">🌧️ Rain</option>
+          <option value="🌨️">🌨️ Snow Showers</option>
+          <option value="❄️">❄️ Snow</option>
+          <option value="⛈️">⛈️ Thunderstorm</option>
+        </select>
       </div>
     </div>
 
+    <div class="checkbox-row">
+      <input type="checkbox" id="addMonticello">
+      <label for="addMonticello">Add Monticello</label>
+    </div>
+
+    <div class="subsection" id="monticelloWeatherSection">
+      <label style="margin-top:0;">🌤️ Weather (Monticello)</label>
+      <div class="row">
+        <div>
+          <label for="highMC">High °F</label>
+          <input type="text" id="highMC" value="">
+        </div>
+        <div>
+          <label for="lowMC">Low °F</label>
+          <input type="text" id="lowMC" value="">
+        </div>
+        <div>
+          <label for="emojiMC">Icon</label>
+          <select id="emojiMC">
+            <option value="☀️">☀️ Sunny</option>
+            <option value="🌤️">🌤️ Mostly Sunny</option>
+            <option value="⛅">⛅ Partly Cloudy</option>
+            <option value="☁️">☁️ Cloudy</option>
+            <option value="🌫️">🌫️ Fog</option>
+            <option value="🌧️">🌧️ Rain</option>
+            <option value="🌨️">🌨️ Snow Showers</option>
+            <option value="❄️">❄️ Snow</option>
+            <option value="⛈️">⛈️ Thunderstorm</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label style="margin-top:0;">🕰 Zmanim (Brooklyn)</label>
     <div class="row">
       <div>
-        <label for="candle">Candle Lighting</label>
-        <input type="text" id="candle" value="">
+        <label for="candleBK">Candle Lighting</label>
+        <input type="text" id="candleBK" value="">
       </div>
       <div>
-        <label for="motzei">Motzei Shabbos</label>
-        <input type="text" id="motzei" value="">
+        <label for="motzeiBK">Motzei Shabbos</label>
+        <input type="text" id="motzeiBK" value="">
       </div>
     </div>
 
-    <label for="quote">Quote</label>
+    <div class="subsection" id="monticelloZmanimSection">
+      <label style="margin-top:0;">🕰 Zmanim (Monticello)</label>
+      <div class="row">
+        <div>
+          <label for="candleMC">Candle Lighting</label>
+          <input type="text" id="candleMC" value="">
+        </div>
+        <div>
+          <label for="motzeiMC">Motzei Shabbos</label>
+          <input type="text" id="motzeiMC" value="">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label for="quote" style="margin-top:0;">Quote</label>
     <textarea id="quote"></textarea>
     <button class="btn-shuffle" id="shuffleBtn">🔀 Shuffle Quote</button>
   </div>
@@ -165,10 +268,15 @@
     "Every sunset brings the promise of a new dawn."
   ];
 
+  // Brooklyn (zip 11219) and Monticello (zip 12701) coordinates
+  var LOCATIONS = {
+    BK: { lat: 40.6304, lon: -73.9980, zip: "11219" },
+    MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
+  };
+
   function pad(n) { return n < 10 ? "0" + n : n; }
 
   function formatTimeFromIso(iso) {
-    // iso like 2026-06-19T20:09:00-04:00 -- read hours/minutes directly, ignore TZ conversion
     var m = iso.match(/T(\d{2}):(\d{2})/);
     if (!m) return "";
     var h = parseInt(m[1], 10);
@@ -187,74 +295,109 @@
     document.getElementById("status").textContent = msg;
   }
 
-  function fetchAll() {
-    setStatus("Fetching zmanim & parsha...");
+  // WMO weather code -> emoji
+  function weatherEmoji(code) {
+    if (code === 0) return "☀️";
+    if (code === 1 || code === 2) return "🌤️";
+    if (code === 3) return "☁️";
+    if (code >= 45 && code <= 48) return "🌫️";
+    if (code >= 51 && code <= 67) return "🌧️";
+    if (code === 71 || code === 73 || code === 75 || code === 77) return "❄️";
+    if (code === 85 || code === 86) return "🌨️";
+    if (code >= 80 && code <= 82) return "🌧️";
+    if (code >= 95) return "⛈️";
+    return "🌤️";
+  }
 
+  function fetchZmanim(zip) {
+    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&M=on";
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error("Hebcal returned status " + r.status);
+      return r.json();
+    });
+  }
+
+  function fetchWeather(lat, lon) {
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&daily=apparent_temperature_max,apparent_temperature_min,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York";
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error("Weather returned status " + r.status);
+      return r.json();
+    });
+  }
+
+  function applyZmanim(data, prefix) {
+    var items = data.items || [];
+    var candle = "", havdalah = "", parsha = "", havdalahDate = "";
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.category === "candles") {
+        candle = formatTimeFromIso(it.date);
+      } else if (it.category === "havdalah") {
+        havdalah = formatTimeFromIso(it.date);
+        havdalahDate = dateFromIso(it.date);
+      } else if (it.category === "parashat" && prefix === "BK") {
+        parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
+      }
+    }
+    if (candle) document.getElementById("candle" + prefix).value = candle;
+    if (havdalah) document.getElementById("motzei" + prefix).value = havdalah;
+    if (parsha) document.getElementById("parsha").value = parsha;
+    return havdalahDate;
+  }
+
+  function applyWeather(wdata, havdalahDate, prefix) {
+    var idx = -1;
+    if (havdalahDate && wdata.daily && wdata.daily.time) {
+      idx = wdata.daily.time.indexOf(havdalahDate);
+    }
+    if (idx === -1) idx = 1; // fallback: tomorrow-ish
+    var hi = wdata.daily.apparent_temperature_max[idx];
+    var lo = wdata.daily.apparent_temperature_min[idx];
+    var code = wdata.daily.weathercode[idx];
+    document.getElementById("high" + prefix).value = Math.round(hi);
+    document.getElementById("low" + prefix).value = Math.round(lo);
+    document.getElementById("emoji" + prefix).value = weatherEmoji(code);
+  }
+
+  function fetchLocation(prefix, zip, lat, lon) {
+    var havdalahDate = "";
+    return fetchZmanim(zip)
+      .then(function(data) {
+        havdalahDate = applyZmanim(data, prefix);
+      })
+      .catch(function(err) {
+        setStatus("⚠️ Zmanim fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
+      })
+      .then(function() {
+        return fetchWeather(lat, lon)
+          .then(function(wdata) {
+            applyWeather(wdata, havdalahDate, prefix);
+          })
+          .catch(function(err) {
+            setStatus("⚠️ Weather fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
+          });
+      });
+  }
+
+  function fetchAll() {
     if (location.protocol === "file:") {
       setStatus("⚠️ This file is open as a local file (file://). Most browsers block live data fetches from local files. Host this file online (e.g. GitHub Pages) for auto-fetch to work. You can still fill everything in manually below.");
       return;
     }
 
-    var hebcalUrl = "https://www.hebcal.com/shabbat/?cfg=json&zip=11219&M=on";
-    var havdalahDate = "";
+    setStatus("Fetching Brooklyn zmanim, parsha & weather...");
 
-    fetch(hebcalUrl)
-      .then(function(r) {
-        if (!r.ok) throw new Error("Hebcal returned status " + r.status);
-        return r.json();
-      })
-      .then(function(data) {
-        var items = data.items || [];
-        var candle = "", havdalah = "", parsha = "";
+    var tasks = [fetchLocation("BK", LOCATIONS.BK.zip, LOCATIONS.BK.lat, LOCATIONS.BK.lon)];
 
-        for (var i = 0; i < items.length; i++) {
-          var it = items[i];
-          if (it.category === "candles") {
-            candle = formatTimeFromIso(it.date);
-          } else if (it.category === "havdalah") {
-            havdalah = formatTimeFromIso(it.date);
-            havdalahDate = dateFromIso(it.date);
-          } else if (it.category === "parashat") {
-            parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
-          }
-        }
+    if (document.getElementById("addMonticello").checked) {
+      tasks.push(fetchLocation("MC", LOCATIONS.MC.zip, LOCATIONS.MC.lat, LOCATIONS.MC.lon));
+    }
 
-        if (candle) document.getElementById("candle").value = candle;
-        if (havdalah) document.getElementById("motzei").value = havdalah;
-        if (parsha) document.getElementById("parsha").value = parsha;
-
-        setStatus("Got zmanim. Fetching weather...");
-      })
-      .catch(function(err) {
-        setStatus("⚠️ Zmanim/parsha fetch failed: " + err.message + ". Fill those in manually.");
-      })
-      .then(function() {
-        var weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=40.6304&longitude=-73.9980&daily=apparent_temperature_max,apparent_temperature_min&temperature_unit=fahrenheit&timezone=America%2FNew_York";
-
-        return fetch(weatherUrl)
-          .then(function(r) {
-            if (!r.ok) throw new Error("Weather returned status " + r.status);
-            return r.json();
-          })
-          .then(function(wdata) {
-            var idx = -1;
-            if (havdalahDate && wdata.daily && wdata.daily.time) {
-              idx = wdata.daily.time.indexOf(havdalahDate);
-            }
-            if (idx === -1) idx = 1; // fallback: tomorrow-ish
-            var hi = wdata.daily.apparent_temperature_max[idx];
-            var lo = wdata.daily.apparent_temperature_min[idx];
-            document.getElementById("high").value = Math.round(hi);
-            document.getElementById("low").value = Math.round(lo);
-            setStatus("Done! Review and edit anything that looks off.");
-          })
-          .catch(function(err) {
-            setStatus("⚠️ Weather fetch failed: " + err.message + ". Fill it in manually.");
-          });
-      })
-      .finally(function() {
-        updatePreview();
-      });
+    Promise.all(tasks).then(function() {
+      setStatus("Done! Review and edit anything that looks off.");
+      updatePreview();
+    });
   }
 
   function escapeHtml(s) {
@@ -263,29 +406,58 @@
 
   function updatePreview() {
     var parsha = document.getElementById("parsha").value || "____";
-    var high = document.getElementById("high").value || "__";
-    var low = document.getElementById("low").value || "__";
-    var candle = document.getElementById("candle").value || "__:__";
-    var motzei = document.getElementById("motzei").value || "__:__";
+    var addAdditional = document.getElementById("addAdditional").checked;
+    var additionalText = document.getElementById("additionalText").value;
+
+    var highBK = document.getElementById("highBK").value || "__";
+    var lowBK = document.getElementById("lowBK").value || "__";
+    var emojiBK = document.getElementById("emojiBK").value || "🌤️";
+
+    var addMonticello = document.getElementById("addMonticello").checked;
+    var highMC = document.getElementById("highMC").value || "__";
+    var lowMC = document.getElementById("lowMC").value || "__";
+    var emojiMC = document.getElementById("emojiMC").value || "🌤️";
+
+    var candleBK = document.getElementById("candleBK").value || "__:__";
+    var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
+    var candleMC = document.getElementById("candleMC").value || "__:__";
+    var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
+
     var quote = document.getElementById("quote").value || "____";
 
     var raw =
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
 "         *🌼 A Git Shabbos 🌼*\n" +
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
-"📜 *Parsha: " + parsha + "*\n\n" +
-"🌤️ *Weather (Brooklyn):*\n" +
-"Feel: High " + high + "°  Low " + low + "°\n\n" +
-"🕰 *Zmanim (Brooklyn):*\n" +
-"• Candle lighting: " + candle + "  \n" +
-"• Motzei Shabbos: " + motzei + "  \n\n" +
-"💬 *Quote:*\n" +
+"📜 *Parsha: " + parsha + "*\n";
+
+    if (addAdditional && additionalText) {
+      raw += additionalText + "\n";
+    }
+
+    raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
+"Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+
+    if (addMonticello) {
+      raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
+"Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+    }
+
+    raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
+"• Candle lighting: " + candleBK + "  \n" +
+"• Motzei Shabbos: " + motzeiBK + "  \n";
+
+    if (addMonticello) {
+      raw += "\n🕰 *Zmanim (Monticello):*\n" +
+"• Candle lighting: " + candleMC + "  \n" +
+"• Motzei Shabbos: " + motzeiMC + "  \n";
+    }
+
+    raw += "\n💬 *Quote:*\n" +
 "> " + quote;
 
-    // store raw text for copying
     window.__rawMessage = raw;
 
-    // build HTML preview: bold *text*, blockquote for "> " lines
     var html = escapeHtml(raw);
     html = html.replace(/\*(.+?)\*/g, "<b>$1</b>");
     html = html.replace(/^&gt; (.*)$/gm, '<span class="quoteline">$1</span>');
@@ -333,14 +505,47 @@
     updatePreview();
   }
 
+  function toggleSection(checkboxId, sectionId) {
+    var checkbox = document.getElementById(checkboxId);
+    var section = document.getElementById(sectionId);
+    if (checkbox.checked) {
+      section.classList.add("visible");
+    } else {
+      section.classList.remove("visible");
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", function() {
-    // initialize with a random quote
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
-    var fields = ["parsha", "high", "low", "candle", "motzei", "quote"];
-    for (var i = 0; i < fields.length; i++) {
-      document.getElementById(fields[i]).addEventListener("input", updatePreview);
+    var textFields = ["parsha", "additionalText", "highBK", "lowBK", "highMC", "lowMC",
+                       "candleBK", "motzeiBK", "candleMC", "motzeiMC", "quote",
+                       "emojiBK", "emojiMC"];
+    for (var i = 0; i < textFields.length; i++) {
+      document.getElementById(textFields[i]).addEventListener("input", updatePreview);
+      document.getElementById(textFields[i]).addEventListener("change", updatePreview);
     }
+
+    document.getElementById("addAdditional").addEventListener("change", function() {
+      toggleSection("addAdditional", "additionalSection");
+      updatePreview();
+    });
+
+    document.getElementById("addMonticello").addEventListener("change", function() {
+      toggleSection("addMonticello", "monticelloWeatherSection");
+      toggleSection("addMonticello", "monticelloZmanimSection");
+      updatePreview();
+      if (this.checked && location.protocol !== "file:") {
+        var hasData = document.getElementById("candleMC").value;
+        if (!hasData) {
+          setStatus("Fetching Monticello zmanim & weather...");
+          fetchLocation("MC", LOCATIONS.MC.zip, LOCATIONS.MC.lat, LOCATIONS.MC.lon).then(function() {
+            setStatus("Done! Review and edit anything that looks off.");
+            updatePreview();
+          });
+        }
+      }
+    });
 
     document.getElementById("fetchBtn").addEventListener("click", fetchAll);
     document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
