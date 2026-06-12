@@ -189,13 +189,23 @@
 
   function fetchAll() {
     setStatus("Fetching zmanim & parsha...");
+
+    if (location.protocol === "file:") {
+      setStatus("⚠️ This file is open as a local file (file://). Most browsers block live data fetches from local files. Host this file online (e.g. GitHub Pages) for auto-fetch to work. You can still fill everything in manually below.");
+      return;
+    }
+
     var hebcalUrl = "https://www.hebcal.com/shabbat/?cfg=json&zip=11219&M=on";
+    var havdalahDate = "";
 
     fetch(hebcalUrl)
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        if (!r.ok) throw new Error("Hebcal returned status " + r.status);
+        return r.json();
+      })
       .then(function(data) {
         var items = data.items || [];
-        var candle = "", havdalah = "", parsha = "", havdalahDate = "";
+        var candle = "", havdalah = "", parsha = "";
 
         for (var i = 0; i < items.length; i++) {
           var it = items[i];
@@ -214,11 +224,18 @@
         if (parsha) document.getElementById("parsha").value = parsha;
 
         setStatus("Got zmanim. Fetching weather...");
-
+      })
+      .catch(function(err) {
+        setStatus("⚠️ Zmanim/parsha fetch failed: " + err.message + ". Fill those in manually.");
+      })
+      .then(function() {
         var weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=40.6304&longitude=-73.9980&daily=apparent_temperature_max,apparent_temperature_min&temperature_unit=fahrenheit&timezone=America%2FNew_York";
 
         return fetch(weatherUrl)
-          .then(function(r) { return r.json(); })
+          .then(function(r) {
+            if (!r.ok) throw new Error("Weather returned status " + r.status);
+            return r.json();
+          })
           .then(function(wdata) {
             var idx = -1;
             if (havdalahDate && wdata.daily && wdata.daily.time) {
@@ -230,10 +247,10 @@
             document.getElementById("high").value = Math.round(hi);
             document.getElementById("low").value = Math.round(lo);
             setStatus("Done! Review and edit anything that looks off.");
+          })
+          .catch(function(err) {
+            setStatus("⚠️ Weather fetch failed: " + err.message + ". Fill it in manually.");
           });
-      })
-      .catch(function(err) {
-        setStatus("Couldn't auto-fetch (offline or API issue). Please fill in manually.");
       })
       .finally(function() {
         updatePreview();
