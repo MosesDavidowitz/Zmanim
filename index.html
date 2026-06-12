@@ -369,7 +369,7 @@
 
   function fetchWeather(lat, lon) {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
-      "&daily=apparent_temperature_max,apparent_temperature_min,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York";
+      "&daily=apparent_temperature_max,apparent_temperature_min&hourly=weathercode&forecast_days=3&temperature_unit=fahrenheit&timezone=America%2FNew_York";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Weather returned status " + r.status);
       return r.json();
@@ -405,9 +405,17 @@
     }
     var hi = wdata.daily.apparent_temperature_max[idx];
     var lo = wdata.daily.apparent_temperature_min[idx];
-    var code = wdata.daily.weathercode[idx];
     document.getElementById("high" + prefix).value = Math.round(hi);
     document.getElementById("low" + prefix).value = Math.round(lo);
+
+    // Use hourly weathercode at tomorrow's midday (hour index 36 = day1, hour 12)
+    // rather than the daily aggregate, which reports the day's worst-case code.
+    var code;
+    if (wdata.hourly && wdata.hourly.weathercode && wdata.hourly.weathercode.length > 36) {
+      code = wdata.hourly.weathercode[36];
+    } else if (wdata.hourly && wdata.hourly.weathercode) {
+      code = wdata.hourly.weathercode[wdata.hourly.weathercode.length - 1];
+    }
     document.getElementById("emoji" + prefix).value = weatherEmoji(code);
   }
 
