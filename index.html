@@ -42,6 +42,11 @@
     font-family: inherit;
     background: #fff;
   }
+  input[type="text"]:disabled {
+    background: #eee;
+    color: #999;
+    cursor: not-allowed;
+  }
   textarea { resize: vertical; min-height: 60px; }
   .row { display: flex; gap: 10px; }
   .row > div { flex: 1; }
@@ -165,11 +170,15 @@
 
   <div class="card">
     <label for="parsha">Parsha (Hebrew)</label>
-    <div class="row" style="align-items:center;">
+    <div class="row" style="align-items:flex-start;">
       <div style="flex: 1;">
-        <input type="text" id="additionalText" placeholder="optional">
+        <input type="text" id="additionalText" placeholder="optional" disabled>
+        <div class="checkbox-row" style="margin-top:6px;">
+          <input type="checkbox" id="includeAdditional">
+          <label for="includeAdditional" style="font-size:12px;">Include</label>
+        </div>
       </div>
-      <div style="flex: 0 0 auto; font-size: 18px; font-weight: 700; color: #888; padding: 0 2px;">-</div>
+      <div style="flex: 0 0 auto; font-size: 18px; font-weight: 700; color: #888; padding: 8px 2px 0;">-</div>
       <div style="flex: 2;">
         <input type="text" id="parsha" value="">
       </div>
@@ -321,18 +330,30 @@
 
   function fetchQuotes() {
     if (location.protocol === "file:") return Promise.resolve();
-    return fetch("https://type.fit/api/quotes")
+    return fetch("https://quoteslate.vercel.app/api/quotes/random?count=50&maxLength=160")
       .then(function(r) {
-        if (!r.ok) throw new Error("Quotes API status " + r.status);
+        if (!r.ok) throw new Error("QuoteSlate status " + r.status);
         return r.json();
       })
       .then(function(data) {
-        remoteQuotes = data.filter(function(q) {
-          return q && q.text && q.text.length > 10 && q.text.length < 180;
-        });
+        remoteQuotes = data
+          .map(function(q) { return { text: q.quote }; })
+          .filter(function(q) { return q.text && q.text.length > 10 && q.text.length < 180; });
       })
       .catch(function(err) {
-        // silently fall back to the local quote list
+        return fetch("https://type.fit/api/quotes")
+          .then(function(r) {
+            if (!r.ok) throw new Error("type.fit status " + r.status);
+            return r.json();
+          })
+          .then(function(data) {
+            remoteQuotes = data.filter(function(q) {
+              return q && q.text && q.text.length > 10 && q.text.length < 180;
+            });
+          })
+          .catch(function(err2) {
+            // silently fall back to the local quote list
+          });
       });
   }
 
@@ -431,7 +452,10 @@
       } else if (it.category === "mevarchim" && prefix === "BK") {
         var monthMatch = (it.hebrew || "").match(/חודש\s+(.+)$/);
         var monthName = monthMatch ? monthMatch[1] : "";
-        document.getElementById("additionalText").value = "מבה\u05f4ח " + monthName;
+        var additionalEl = document.getElementById("additionalText");
+        additionalEl.value = "מבה\u05f4ח " + monthName;
+        additionalEl.disabled = false;
+        document.getElementById("includeAdditional").checked = true;
       }
     }
     if (candle) document.getElementById("candle" + prefix).value = candle;
@@ -525,7 +549,7 @@
     var quote = document.getElementById("quote").value || "____";
 
     var parshaLine = parsha;
-    if (additionalText) {
+    if (document.getElementById("includeAdditional").checked && additionalText) {
       parshaLine += " - " + additionalText;
     }
 
@@ -632,6 +656,11 @@
       document.getElementById(textFields[i]).addEventListener("input", updatePreview);
       document.getElementById(textFields[i]).addEventListener("change", updatePreview);
     }
+
+    document.getElementById("includeAdditional").addEventListener("change", function() {
+      document.getElementById("additionalText").disabled = !this.checked;
+      updatePreview();
+    });
 
     document.getElementById("addMonticello").addEventListener("change", function() {
       var section = document.getElementById("monticelloSection");
