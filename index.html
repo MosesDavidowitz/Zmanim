@@ -429,7 +429,7 @@
   }
 
   function fetchZmanim(zip) {
-    var url = "https://www.hebcal.com/shabbat/?cfg=json&zip=" + zip + "&m=72&mvch=on";
+    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip + "&m=72&mvch=on&ue=on";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
@@ -491,7 +491,8 @@
       }
     }
 
-    // Fill candle times
+    // Fill candle times — for 2-day Yom Tov: candles[0]=1st night, candles[1]=2nd night
+    // Sometimes a 3rd candles item appears representing end-of-Yom-Tov (no havdalah returned)
     if (candles.length >= 1) document.getElementById("candle" + prefix).value = candles[0];
 
     var isTwoDayYomTov = candles.length >= 2;
@@ -502,6 +503,8 @@
       document.getElementById("candle2" + prefix).value = candles[1];
       candle2Wrap.classList.remove("hidden");
       if (motzeiLabel) motzeiLabel.textContent = "Motzei Yom Tov";
+      // If no havdalah returned but 3rd candles exists, use that as end time
+      if (!havdalah && candles.length >= 3) havdalah = candles[2];
     } else {
       candle2Wrap.classList.add("hidden");
       if (motzeiLabel) motzeiLabel.textContent = "Motzei Shabbos";
