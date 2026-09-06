@@ -223,8 +223,12 @@
         <label for="candleBK">Candle Lighting</label>
         <input type="text" id="candleBK" value="">
       </div>
+      <div id="candle2BKWrap" class="hidden">
+        <label for="candle2BK">Candle Lighting 2nd Night</label>
+        <input type="text" id="candle2BK" value="">
+      </div>
       <div>
-        <label for="motzeiBK">Motzei Shabbos</label>
+        <label for="motzeiBK" id="motzeiLabelBK">Motzei Shabbos</label>
         <input type="text" id="motzeiBK" value="">
       </div>
     </div>
@@ -261,8 +265,12 @@
         <label for="candleMC">Candle Lighting</label>
         <input type="text" id="candleMC" value="">
       </div>
+      <div id="candle2MCWrap" class="hidden">
+        <label for="candle2MC">Candle Lighting 2nd Night</label>
+        <input type="text" id="candle2MC" value="">
+      </div>
       <div>
-        <label for="motzeiMC">Motzei Shabbos</label>
+        <label for="motzeiMC" id="motzeiLabelMC">Motzei Shabbos</label>
         <input type="text" id="motzeiMC" value="">
       </div>
     </div>
@@ -439,11 +447,12 @@
 
   function applyZmanim(data, prefix) {
     var items = data.items || [];
-    var candle = "", havdalah = "", parsha = "", havdalahDate = "";
+    var candles = [], havdalah = "", havdalahDate = "", parsha = "", yomTovName = "";
+
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (it.category === "candles") {
-        candle = formatTimeFromIso(it.date);
+        candles.push(formatTimeFromIso(it.date));
       } else if (it.category === "havdalah") {
         havdalah = formatTimeFromIso(it.date);
         havdalahDate = dateFromIso(it.date);
@@ -457,29 +466,58 @@
         additionalEl.disabled = false;
         document.getElementById("includeAdditional").checked = true;
       } else if (it.category === "holiday" && prefix === "BK") {
-        // Special Shabbatot: Nachamu, Shuva, Shekalim, Zachor, Parah, HaChodesh, HaGadol, Chazon, Mevorchim etc.
         var heb = it.hebrew || "";
         var specialShabbat = null;
-        if (heb.indexOf("\u05e9\u05d1\u05ea \u05e0\u05d7\u05de\u05d5") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05e0\u05d7\u05de\u05d5"; // שבת נחמו
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e9\u05d5\u05d1\u05d4") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05e9\u05d5\u05d1\u05d4"; // שבת שובה
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e9\u05e7\u05dc\u05d9\u05dd") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05e9\u05e7\u05dc\u05d9\u05dd"; // שבת שקלים
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d6\u05db\u05d5\u05e8") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05d6\u05db\u05d5\u05e8"; // שבת זכור
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e4\u05e8\u05d4") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05e4\u05e8\u05d4"; // שבת פרה
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d4\u05d7\u05d5\u05d3\u05e9") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05d4\u05d7\u05d5\u05d3\u05e9"; // שבת החודש
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d4\u05d2\u05d3\u05d5\u05dc") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05d4\u05d2\u05d3\u05d5\u05dc"; // שבת הגדול
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d7\u05d6\u05d5\u05df") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05d7\u05d6\u05d5\u05df"; // שבת חזון
-        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e8\u05d0\u05e9") !== -1) specialShabbat = "\u05e9\u05d1\u05ea \u05e8\u05d0\u05e9"; // שבת ראש חודש
+        if (heb.indexOf("\u05e9\u05d1\u05ea \u05e0\u05d7\u05de\u05d5") !== -1) specialShabbat = "\u05e0\u05d7\u05de\u05d5";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e9\u05d5\u05d1\u05d4") !== -1) specialShabbat = "\u05e9\u05d5\u05d1\u05d4";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e9\u05e7\u05dc\u05d9\u05dd") !== -1) specialShabbat = "\u05e9\u05e7\u05dc\u05d9\u05dd";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d6\u05db\u05d5\u05e8") !== -1) specialShabbat = "\u05d6\u05db\u05d5\u05e8";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e4\u05e8\u05d4") !== -1) specialShabbat = "\u05e4\u05e8\u05d4";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d4\u05d7\u05d5\u05d3\u05e9") !== -1) specialShabbat = "\u05d4\u05d7\u05d5\u05d3\u05e9";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d4\u05d2\u05d3\u05d5\u05dc") !== -1) specialShabbat = "\u05d4\u05d2\u05d3\u05d5\u05dc";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05d7\u05d6\u05d5\u05df") !== -1) specialShabbat = "\u05d7\u05d6\u05d5\u05df";
+        else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e8\u05d0\u05e9") !== -1) specialShabbat = "\u05e8\u05d0\u05e9 \u05d7\u05d5\u05d3\u05e9";
         if (specialShabbat) {
           var el = document.getElementById("additionalText");
           el.value = specialShabbat;
           el.disabled = false;
           document.getElementById("includeAdditional").checked = true;
         }
+        // Capture Yom Tov name for parsha field (only first holiday item)
+        if (!yomTovName && !specialShabbat) {
+          // Strip day number suffix like א׳ or ב׳
+          yomTovName = heb.replace(/\s+[א-ת][\u05f3\u05f4]?\s*$/, "").trim();
+        }
       }
     }
-    if (candle) document.getElementById("candle" + prefix).value = candle;
+
+    // Fill candle times
+    if (candles.length >= 1) document.getElementById("candle" + prefix).value = candles[0];
+
+    var isTwoDayYomTov = candles.length >= 2;
+    var candle2Wrap = document.getElementById("candle2" + prefix + "Wrap");
+    var motzeiLabel = document.getElementById("motzeiLabel" + prefix);
+
+    if (isTwoDayYomTov) {
+      document.getElementById("candle2" + prefix).value = candles[1];
+      candle2Wrap.classList.remove("hidden");
+      if (motzeiLabel) motzeiLabel.textContent = "Motzei Yom Tov";
+    } else {
+      candle2Wrap.classList.add("hidden");
+      if (motzeiLabel) motzeiLabel.textContent = "Motzei Shabbos";
+    }
+
     if (havdalah) document.getElementById("motzei" + prefix).value = havdalah;
-    if (parsha) document.getElementById("parsha").value = parsha;
+
+    // Fill parsha: use weekly parsha if found, otherwise use Yom Tov name
+    if (prefix === "BK") {
+      if (parsha) {
+        document.getElementById("parsha").value = parsha;
+      } else if (yomTovName) {
+        document.getElementById("parsha").value = yomTovName;
+      }
+    }
+
     return havdalahDate;
   }
 
@@ -567,9 +605,16 @@
     var conditionMC = emojiPartsMC[1] || "";
 
     var candleBK = document.getElementById("candleBK").value || "__:__";
+    var candle2BK = document.getElementById("candle2BK").value;
     var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
+    var isTwoDayBK = !document.getElementById("candle2BKWrap").classList.contains("hidden");
+    var motzeiLabelBK = isTwoDayBK ? "Motzei Yom Tov" : "Motzei Shabbos";
+
     var candleMC = document.getElementById("candleMC").value || "__:__";
+    var candle2MC = document.getElementById("candle2MC").value;
     var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
+    var isTwoDayMC = !document.getElementById("candle2MCWrap").classList.contains("hidden");
+    var motzeiLabelMC = isTwoDayMC ? "Motzei Yom Tov" : "Motzei Shabbos";
 
     var quote = document.getElementById("quote").value || "____";
 
@@ -595,13 +640,19 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
     }
 
     raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
-"• Candle lighting: " + candleBK + "  \n" +
-"• Motzei Shabbos: " + motzeiBK + "  \n";
+"• Candle lighting: " + candleBK + "  \n";
+    if (isTwoDayBK && candle2BK) {
+      raw += "• Candle lighting 2nd night: " + candle2BK + "  \n";
+    }
+    raw += "• " + motzeiLabelBK + ": " + motzeiBK + "  \n";
 
     if (addMonticello) {
       raw += "\n🕰 *Zmanim (Monticello):*\n" +
-"• Candle lighting: " + candleMC + "  \n" +
-"• Motzei Shabbos: " + motzeiMC + "  \n";
+"• Candle lighting: " + candleMC + "  \n";
+      if (isTwoDayMC && candle2MC) {
+        raw += "• Candle lighting 2nd night: " + candle2MC + "  \n";
+      }
+      raw += "• " + motzeiLabelMC + ": " + motzeiMC + "  \n";
     }
 
     raw += "\n💬 *Quote:*\n" +
@@ -675,7 +726,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
     });
 
     var textFields = ["parsha", "additionalText", "highBK", "lowBK", "highMC", "lowMC",
-                       "candleBK", "motzeiBK", "candleMC", "motzeiMC", "quote",
+                       "candleBK", "candle2BK", "motzeiBK", "candleMC", "candle2MC", "motzeiMC", "quote",
                        "emojiBK", "emojiMC"];
     for (var i = 0; i < textFields.length; i++) {
       document.getElementById(textFields[i]).addEventListener("input", updatePreview);
