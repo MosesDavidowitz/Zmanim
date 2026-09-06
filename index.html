@@ -483,8 +483,8 @@
           el.disabled = false;
           document.getElementById("includeAdditional").checked = true;
         }
-        // Capture Yom Tov name for parsha field (only first holiday item)
-        if (!yomTovName && !specialShabbat) {
+        // Capture Yom Tov name for parsha field — skip ערב (eve) entries
+        if (!yomTovName && !specialShabbat && heb.indexOf("\u05e2\u05e8\u05d1") === -1) {
           // Strip day number suffix like א׳ or ב׳
           yomTovName = heb.replace(/\s+[א-ת][\u05f3\u05f4]?\s*$/, "").trim();
         }
