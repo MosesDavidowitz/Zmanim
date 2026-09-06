@@ -428,8 +428,30 @@
     return "🌤️|Mostly Sunny";
   }
 
+  function getNextShabbatRange() {
+    // Returns {start, end} covering coming Erev Shabbos (Friday) through end of Sunday
+    // so that 2-day Yom Tov havdalah on Sunday is always included
+    var now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    var day = now.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    // Days until next Friday
+    var daysToFri = (5 - day + 7) % 7;
+    if (daysToFri === 0 && now.getHours() >= 20) daysToFri = 7; // past candle lighting on Friday
+    if (day === 6) daysToFri = 6; // Saturday, next Friday is 6 days away
+    var friday = new Date(now);
+    friday.setDate(now.getDate() + daysToFri);
+    var sunday = new Date(friday);
+    sunday.setDate(friday.getDate() + 2);
+    function fmt(d) {
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
+    return { start: fmt(friday), end: fmt(sunday) };
+  }
+
   function fetchZmanim(zip) {
-    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip + "&m=72&mvch=on&ue=on";
+    var range = getNextShabbatRange();
+    var url = "https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&nx=on&mf=on&ss=on&s=on&c=on" +
+      "&geo=zip&zip=" + zip + "&m=72&lg=he&mvch=on&leyning=off" +
+      "&start=" + range.start + "&end=" + range.end;
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
@@ -483,10 +505,13 @@
           el.disabled = false;
           document.getElementById("includeAdditional").checked = true;
         }
-        // Capture Yom Tov name for parsha field — skip ערב (eve) entries
         if (!yomTovName && !specialShabbat && heb.indexOf("\u05e2\u05e8\u05d1") === -1) {
-          // Strip day number suffix like א׳ or ב׳
-          yomTovName = heb.replace(/\s+[א-ת][\u05f3\u05f4]?\s*$/, "").trim();
+          // Strip day suffix (א׳ ב׳) and any trailing year digits
+          yomTovName = heb
+            .replace(/\s+\d+$/, "")
+            .replace(/\s+[א-ת][\u05f3\u05f4]\s*$/, "")
+            .replace(/\s+[א-ת]\s*$/, "")
+            .trim();
         }
       }
     }
