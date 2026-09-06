@@ -332,7 +332,7 @@
     MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
   };
 
-  var FLOWERS = ["🌼", "🌸", "🌺", "🌻", "🌷", "🌹", "🪷", "💮"];
+  var FLOWERS = ["🌼", "🌸", "🌺", "🌻", "🌷", "🌹", "🪷", "🌝"];
 
   var remoteQuotes = [];
 
@@ -429,28 +429,26 @@
   }
 
   function getNextShabbatRange() {
-    // Returns {start, end} covering coming Erev Shabbos (Friday) through end of Sunday
-    // so that 2-day Yom Tov havdalah on Sunday is always included
     var now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    var day = now.getDay(); // 0=Sun,1=Mon,...,6=Sat
-    // Days until next Friday
+    var day = now.getDay();
     var daysToFri = (5 - day + 7) % 7;
-    if (daysToFri === 0 && now.getHours() >= 20) daysToFri = 7; // past candle lighting on Friday
-    if (day === 6) daysToFri = 6; // Saturday, next Friday is 6 days away
+    if (daysToFri === 0 && now.getHours() >= 20) daysToFri = 7;
+    if (day === 6) daysToFri = 6;
     var friday = new Date(now);
     friday.setDate(now.getDate() + daysToFri);
-    var sunday = new Date(friday);
-    sunday.setDate(friday.getDate() + 2);
+    // End on Monday to always capture Sunday-night havdalah for 2-day Yom Tov
+    var monday = new Date(friday);
+    monday.setDate(friday.getDate() + 3);
     function fmt(d) {
       return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
     }
-    return { start: fmt(friday), end: fmt(sunday) };
+    return { start: fmt(friday), end: fmt(monday) };
   }
 
   function fetchZmanim(zip) {
     var range = getNextShabbatRange();
     var url = "https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&nx=on&mf=on&ss=on&s=on&c=on" +
-      "&geo=zip&zip=" + zip + "&m=72&lg=he&mvch=on&leyning=off" +
+      "&geo=zip&zip=" + zip + "&m=72&b=22&lg=he&mvch=on&leyning=off" +
       "&start=" + range.start + "&end=" + range.end;
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
@@ -469,12 +467,14 @@
 
   function applyZmanim(data, prefix) {
     var items = data.items || [];
-    var candles = [], havdalah = "", havdalahDate = "", parsha = "", yomTovName = "";
+    var candles = [], candleDates = [], havdalah = "", havdalahDate = "", parsha = "", yomTovName = "";
+    var isYomTov = false;
 
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (it.category === "candles") {
         candles.push(formatTimeFromIso(it.date));
+        candleDates.push(it.date); // keep ISO date for day-name lookup
       } else if (it.category === "havdalah") {
         havdalah = formatTimeFromIso(it.date);
         havdalahDate = dateFromIso(it.date);
@@ -489,6 +489,10 @@
         document.getElementById("includeAdditional").checked = true;
       } else if (it.category === "holiday" && prefix === "BK") {
         var heb = it.hebrew || "";
+        // Detect real Yom Tov (not Erev)
+        if (it.yomtov && heb.indexOf("\u05e2\u05e8\u05d1") === -1) {
+          isYomTov = true;
+        }
         var specialShabbat = null;
         if (heb.indexOf("\u05e9\u05d1\u05ea \u05e0\u05d7\u05de\u05d5") !== -1) specialShabbat = "\u05e0\u05d7\u05de\u05d5";
         else if (heb.indexOf("\u05e9\u05d1\u05ea \u05e9\u05d5\u05d1\u05d4") !== -1) specialShabbat = "\u05e9\u05d5\u05d1\u05d4";
@@ -506,7 +510,6 @@
           document.getElementById("includeAdditional").checked = true;
         }
         if (!yomTovName && !specialShabbat && heb.indexOf("\u05e2\u05e8\u05d1") === -1) {
-          // Strip day suffix (א׳ ב׳) and any trailing year digits
           yomTovName = heb
             .replace(/\s+\d+$/, "")
             .replace(/\s+[א-ת][\u05f3\u05f4]\s*$/, "")
@@ -516,8 +519,13 @@
       }
     }
 
-    // Fill candle times — for 2-day Yom Tov: candles[0]=1st night, candles[1]=2nd night
-    // Sometimes a 3rd candles item appears representing end-of-Yom-Tov (no havdalah returned)
+    // For BK, store global state for header/label rendering
+    if (prefix === "BK") {
+      window.__isYomTov = isYomTov;
+      window.__yomTovName = yomTovName;
+      window.__candleDates = candleDates;
+    }
+
     if (candles.length >= 1) document.getElementById("candle" + prefix).value = candles[0];
 
     var isTwoDayYomTov = candles.length >= 2;
@@ -528,16 +536,14 @@
       document.getElementById("candle2" + prefix).value = candles[1];
       candle2Wrap.classList.remove("hidden");
       if (motzeiLabel) motzeiLabel.textContent = "Motzei Yom Tov";
-      // If no havdalah returned but 3rd candles exists, use that as end time
       if (!havdalah && candles.length >= 3) havdalah = candles[2];
     } else {
       candle2Wrap.classList.add("hidden");
-      if (motzeiLabel) motzeiLabel.textContent = "Motzei Shabbos";
+      if (motzeiLabel) motzeiLabel.textContent = isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos";
     }
 
     if (havdalah) document.getElementById("motzei" + prefix).value = havdalah;
 
-    // Fill parsha: use weekly parsha if found, otherwise use Yom Tov name
     if (prefix === "BK") {
       if (parsha) {
         document.getElementById("parsha").value = parsha;
@@ -613,9 +619,42 @@
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
+  var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Shabbos"];
+
+  function dayNameFromIso(iso) {
+    if (!iso) return "";
+    var m = iso.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!m) return "";
+    var parts = m[1].split("-");
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return DAY_NAMES[d.getDay()];
+  }
+
+  // Yom Tov emoji pairs (never ✡)
+  var YOM_TOV_EMOJIS = {
+    "\u05e8\u05d0\u05e9 \u05d4\u05e9\u05e0\u05d4": ["🍎", "🍯"],   // ראש השנה
+    "\u05d9\u05d5\u05dd \u05db\u05d9\u05e4\u05d5\u05e8": ["🤍", "📖"],   // יום כיפור
+    "\u05e1\u05d5\u05db\u05d5\u05ea": ["🌿", "🍋"],                 // סוכות
+    "\u05e9\u05de\u05d9\u05e0\u05d9 \u05e2\u05e6\u05e8\u05ea": ["🌟", "📜"],  // שמיני עצרת
+    "\u05e9\u05de\u05d7\u05ea \u05ea\u05d5\u05e8\u05d4": ["📜", "🎉"],  // שמחת תורה
+    "\u05e4\u05e1\u05d7": ["🍷", "🫓"],                             // פסח
+    "\u05e9\u05d1\u05d5\u05e2\u05d5\u05ea": ["📜", "🌸"],           // שבועות
+  };
+
+  function getYomTovEmojis(name) {
+    if (!name) return null;
+    for (var key in YOM_TOV_EMOJIS) {
+      if (name.indexOf(key) !== -1) return YOM_TOV_EMOJIS[key];
+    }
+    return ["🌟", "🌟"]; // generic fallback for unknown Yom Tov
+  }
+
   function updatePreview() {
     var parsha = document.getElementById("parsha").value || "____";
     var additionalText = document.getElementById("additionalText").value;
+    var isYomTov = window.__isYomTov || false;
+    var yomTovName = window.__yomTovName || "";
+    var candleDates = window.__candleDates || [];
 
     var highBK = document.getElementById("highBK").value || "__";
     var lowBK = document.getElementById("lowBK").value || "__";
@@ -636,13 +675,13 @@
     var candle2BK = document.getElementById("candle2BK").value;
     var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
     var isTwoDayBK = !document.getElementById("candle2BKWrap").classList.contains("hidden");
-    var motzeiLabelBK = isTwoDayBK ? "Motzei Yom Tov" : "Motzei Shabbos";
+    var motzeiLabelBK = (isTwoDayBK || isYomTov) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
     var candleMC = document.getElementById("candleMC").value || "__:__";
     var candle2MC = document.getElementById("candle2MC").value;
     var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
     var isTwoDayMC = !document.getElementById("candle2MCWrap").classList.contains("hidden");
-    var motzeiLabelMC = isTwoDayMC ? "Motzei Yom Tov" : "Motzei Shabbos";
+    var motzeiLabelMC = (isTwoDayMC || isYomTov) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
     var quote = document.getElementById("quote").value || "____";
 
@@ -651,20 +690,63 @@
       parshaLine += " - " + additionalText;
     }
 
-    var flower = window.__flower || "🌼";
+    // Header: Yom Tov vs Shabbos
+    var headerText, leftEmoji, rightEmoji;
+    if (isYomTov) {
+      headerText = "A Git Yom Tov";
+      var ytEmojis = getYomTovEmojis(yomTovName);
+      leftEmoji = ytEmojis[0];
+      rightEmoji = ytEmojis[1];
+    } else {
+      headerText = "A Git Shabbos";
+      leftEmoji = window.__flower || "🌼";
+      rightEmoji = leftEmoji;
+    }
+
+    // Parsha label
+    var parshaLabel = isYomTov ? "\u05d9\u05d5\u05dd \u05d8\u05d5\u05d1" : "Parsha"; // יום טוב or Parsha
+
+    // Day labels for weather when 2-day Yom Tov
+    var day1Label = candleDates.length >= 1 ? dayNameFromIso(candleDates[0]) : "";
+    var day2Label = candleDates.length >= 2 ? dayNameFromIso(candleDates[1]) : "";
+    // The actual Yom Tov days are the days AFTER each candle lighting (candle on Fri eve = Shabbos day)
+    // But candleDates[0] is the Erev candle date (e.g. Friday), so day1 = Saturday
+    // We shift by 1 to get the actual Yom Tov day
+    function nextDay(dayName) {
+      var idx = DAY_NAMES.indexOf(dayName);
+      if (idx === -1) return dayName;
+      return DAY_NAMES[(idx + 1) % 7];
+    }
+    var ytDay1 = day1Label ? nextDay(day1Label) : "";
+    var ytDay2 = day2Label ? nextDay(day2Label) : "";
 
     var raw =
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
-"         *" + flower + " A Git Shabbos " + flower + "*\n" +
+"         *" + leftEmoji + " " + headerText + " " + rightEmoji + "*\n" +
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
-"📜 *Parsha: " + parshaLine + "*\n";
+"📜 *" + parshaLabel + ": " + parshaLine + "*\n";
 
-    raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
+    // Weather — one line normally, two lines for 2-day Yom Tov
+    if (isTwoDayBK && ytDay1 && ytDay2) {
+      raw += "\n" + emojiBK + " *Weather (Brooklyn - " + ytDay1 + "):*\n" +
 conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+      raw += "\n" + emojiBK + " *Weather (Brooklyn - " + ytDay2 + "):*\n" +
+conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+    } else {
+      raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
+conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+    }
 
     if (addMonticello) {
-      raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
+      if (isTwoDayMC && ytDay1 && ytDay2) {
+        raw += "\n" + emojiMC + " *Weather (Monticello - " + ytDay1 + "):*\n" +
 conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+        raw += "\n" + emojiMC + " *Weather (Monticello - " + ytDay2 + "):*\n" +
+conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+      } else {
+        raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
+conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+      }
     }
 
     raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
