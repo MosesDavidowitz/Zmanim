@@ -55,10 +55,10 @@
     margin-top: 10px;
   }
   button:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-fetch { background: #2563eb; color: #fff; width: 100%; }
   .btn-shuffle { background: #eee; color: #333; font-size: 13px; padding: 6px 10px; margin-top: 6px; }
   .btn-copy { background: #25D366; color: #fff; width: 100%; font-size: 16px; padding: 12px; }
-  .status { font-size: 12px; color: #666; margin-top: 8px; min-height: 14px; line-height: 1.35; }
+  .status { font-size: 12px; color: #555; min-height: 16px; line-height: 1.4; text-align: center; }
+  .status-card { padding: 11px 14px; }
   .header-banner {
     position: relative;
     background: #2c3e50;
@@ -87,14 +87,6 @@
     margin-top: 8px;
     letter-spacing: 4px;
     text-transform: uppercase;
-  }
-  .version-badge {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 11px;
-    color: #c9a96e;
-    letter-spacing: .3px;
   }
   .event-nav {
     padding: 12px;
@@ -215,7 +207,6 @@
 <body>
 <div class="container">
   <div class="header-banner">
-    <div class="version-badge" id="versionBadge"></div>
     <h1>Zmanim Generator</h1>
     <div class="subtitle">Weekly Message Generator</div>
   </div>
@@ -231,9 +222,8 @@
     </div>
   </div>
 
-  <div class="card">
-    <button class="btn-fetch" id="fetchBtn">🔄 Refresh Selected Event, Zmanim &amp; Weather</button>
-    <div class="status" id="status"></div>
+  <div class="card status-card">
+    <div class="status" id="status">Loading...</div>
   </div>
 
   <div class="card">
@@ -296,7 +286,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "2.4";
+  var APP_VERSION = "2.5";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -351,7 +341,8 @@
     loadedStart: null,
     loadedEnd: null,
     locationData: { BK: null, MC: null },
-    busy: false
+    busy: false,
+    upcomingBlockKey: ""
   };
 
   function pad(n) { return n < 10 ? "0" + n : String(n); }
@@ -425,9 +416,21 @@
     document.getElementById("status").textContent = msg || "";
   }
 
+  function setLoadedStatus(block) {
+    if (!block) return;
+    var isUpcoming = state.upcomingBlockKey && blockKey(block) === state.upcomingBlockKey;
+    var hasUnavailable = document.querySelector('#weatherRowsBK option[value="❔|Forecast unavailable"]:checked') !== null;
+    var parts = [];
+    if (isUpcoming) parts.push("Upcoming event");
+    parts.push("Loaded " + (block.displayEnglish || "Shabbos"));
+    parts.push(prettyDateRange(block.startDate, block.endDate));
+    parts.push("Zmanim loaded");
+    parts.push(hasUnavailable ? "Weather unavailable for these dates" : "Weather loaded");
+    setStatus(parts.join(" • "));
+  }
+
   function setBusy(isBusy) {
     state.busy = isBusy;
-    document.getElementById("fetchBtn").disabled = isBusy;
     document.getElementById("prevEventBtn").disabled = isBusy || state.selectedIndex < 0;
     document.getElementById("nextEventBtn").disabled = isBusy || state.selectedIndex < 0;
   }
@@ -863,12 +866,7 @@
     }
 
     return Promise.all(tasks).then(function() {
-      var hasUnavailable = document.querySelector('#weatherRowsBK option[value="❔|Forecast unavailable"]:checked') !== null;
-      setStatus(
-        "Loaded " + block.displayEnglish + ". Zmanim use Hebcal at " + CANDLE_MINUTES_BEFORE_SUNSET +
-        " min before sunset and " + HAVDALAH_MINUTES_AFTER_SUNSET + " min after sunset." +
-        (hasUnavailable ? " Weather is only filled when the selected dates are inside the current forecast window." : "")
-      );
+      setLoadedStatus(block);
       setBusy(false);
       updatePreview();
     }).catch(function(err) {
@@ -939,28 +937,6 @@
     }).catch(function(err) {
       setBusy(false);
       setStatus("⚠️ Could not load earlier events: " + err.message);
-    });
-  }
-
-  function refreshSelected() {
-    if (state.busy || !state.selectedBlock) return;
-    var key = blockKey(state.selectedBlock);
-    setBusy(true);
-    setStatus("Refreshing selected event...");
-    var start = addDays(state.selectedBlock.startDate, -2);
-    var end = addDays(state.selectedBlock.endDate, 2);
-    fetchCalendar(LOCATIONS.BK, start, end).then(function(data) {
-      var replacement = buildBlocks(data.items || []).find(function(b) { return blockKey(b) === key; });
-      if (replacement) {
-        var idx = state.blocks.findIndex(function(b) { return blockKey(b) === key; });
-        if (idx >= 0) state.blocks[idx] = replacement;
-        state.selectedBlock = replacement;
-      }
-      setBusy(false);
-      return loadSelectedEvent();
-    }).catch(function(err) {
-      setBusy(false);
-      setStatus("⚠️ Refresh failed: " + err.message);
     });
   }
 
@@ -1085,10 +1061,8 @@
 
   function startApp() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
-    document.getElementById("versionBadge").textContent = "v" + APP_VERSION;
     document.getElementById("footer").textContent =
-      "A Davidowitz Project © " + new Date().getFullYear() + " — v" + APP_VERSION +
-      " · Candle " + CANDLE_MINUTES_BEFORE_SUNSET + " min before sunset · Motzei " + HAVDALAH_MINUTES_AFTER_SUNSET + " min after sunset";
+      "A Davidowitz Project © " + new Date().getFullYear() + " - v" + APP_VERSION;
 
     // Always put a quote in the field immediately. Remote quotes load only for future shuffles.
     ensureDefaultQuote();
@@ -1113,7 +1087,7 @@
           setStatus("Fetching Monticello zmanim & weather...");
           loadMonticelloForBlock(state.selectedBlock)
             .then(function() {
-              setStatus("Monticello loaded.");
+              setLoadedStatus(state.selectedBlock);
               updatePreview();
             })
             .catch(function(err) {
@@ -1128,7 +1102,6 @@
 
     document.getElementById("prevEventBtn").addEventListener("click", goPrevious);
     document.getElementById("nextEventBtn").addEventListener("click", goNext);
-    document.getElementById("fetchBtn").addEventListener("click", refreshSelected);
     document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
     document.getElementById("copyBtn").addEventListener("click", copyMessage);
 
@@ -1143,6 +1116,7 @@
     setStatus("Finding the next Shabbos or Yom Tov...");
     fetchInitialEvents().then(function() {
       state.selectedIndex = findDefaultBlockIndex();
+      if (state.selectedIndex >= 0) state.upcomingBlockKey = blockKey(state.blocks[state.selectedIndex]);
       setBusy(false);
       if (state.selectedIndex >= 0) {
         loadSelectedEvent();
@@ -1151,7 +1125,7 @@
       }
     }).catch(function(err) {
       setBusy(false);
-      setStatus("⚠️ Event fetch failed: " + err.message + ". Try Refresh after checking the connection.");
+      setStatus("⚠️ Event fetch failed: " + err.message + ". Reload the page after checking the connection.");
     });
   }
 
