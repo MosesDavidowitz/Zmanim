@@ -376,7 +376,7 @@
 
   // Brooklyn (zip 11219) and Monticello (zip 12701) coordinates
   var LOCATIONS = {
-    BK: { lat: 40.6334, lon: -73.9968, zip: "11219" },
+    BK: { lat: 40.7128, lon: -74.0060, zip: "11219" },
     MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
   };
 
@@ -718,11 +718,8 @@
     }
   }
 
-  function fetchSunset(lat, lon, dateStr, zip) {
-    // Use zip code with Hebcal Zmanim API so coordinates match their candle lighting calculations exactly
-    var url = zip
-      ? "https://www.hebcal.com/zmanim?cfg=json&zip=" + zip + "&date=" + dateStr
-      : "https://www.hebcal.com/zmanim?cfg=json&latitude=" + lat + "&longitude=" + lon + "&tzid=America%2FNew_York&date=" + dateStr;
+  function fetchSunset(lat, lon, dateStr) {
+    var url = "https://www.hebcal.com/zmanim?cfg=json&latitude=" + lat + "&longitude=" + lon + "&tzid=America%2FNew_York&date=" + dateStr;
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Zmanim API status " + r.status);
       return r.json();
@@ -755,7 +752,7 @@
       })
       .then(function() {
         if (!candleDateStr) return;
-        return fetchSunset(lat, lon, candleDateStr, zip)
+        return fetchSunset(lat, lon, candleDateStr)
           .then(function(sunset) {
             // Candle lighting = sunset minus 22 min, always floor to minute
             var sunsetSecs = sunset.h * 3600 + sunset.m * 60 + (sunset.s || 0);
@@ -1016,7 +1013,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.7";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.8";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
