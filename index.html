@@ -698,25 +698,26 @@
   }
 
   function fetchSunset(lat, lon, dateStr) {
-    // US Naval Observatory API - most accurate sunset source, supports CORS
-    var url = "https://aa.usno.navy.mil/api/rstt/oneday?date=" + dateStr +
-      "&coords=" + lat + "," + lon + "&tz=-4&dst=false&ID=ZmanimGen";
+    // USNO API v4 - authoritative US government sunset source
+    var url = "https://aa.usno.navy.mil/api/rstt/oneday?ID=ZmanimGen&date=" + dateStr +
+      "&coords=" + lat + "," + lon + "&tz=-4";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("USNO API status " + r.status);
       return r.json();
     }).then(function(data) {
-      var sundata = data.properties && data.properties.data;
-      if (!sundata) throw new Error("No data in USNO response");
-      // Find sunset in sundata.sundata array
-      var sunEvents = sundata.sundata || [];
-      for (var i = 0; i < sunEvents.length; i++) {
-        if (sunEvents[i].phen === "S") {
-          // time format "HH:MM"
-          var parts = sunEvents[i].time.split(":");
+      // v4 API: data.properties.data.sundata[]
+      var sundata = (data.properties && data.properties.data && data.properties.data.sundata)
+        || data.sundata  // fallback for older format
+        || [];
+      for (var i = 0; i < sundata.length; i++) {
+        if (sundata[i].phen === "S") {
+          var parts = sundata[i].time.split(":");
           return { h: parseInt(parts[0], 10), m: parseInt(parts[1], 10), s: 0 };
         }
       }
-      throw new Error("Sunset not found in USNO response");
+      // Log full response to help debug
+      setStatus("⚠️ USNO: no sunset found. Keys: " + Object.keys(data).join(",") + (data.properties ? " props:" + Object.keys(data.properties).join(",") : ""));
+      throw new Error("Sunset not found");
     });
   }
   function fetchZmanim(zip, lat, lon) {
@@ -1026,7 +1027,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v2.1";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v2.2";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
