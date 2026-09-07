@@ -376,7 +376,7 @@
 
   // Brooklyn (zip 11219) and Monticello (zip 12701) coordinates
   var LOCATIONS = {
-    BK: { lat: 40.7282, lon: -73.7949, zip: "11219" },
+    BK: { lat: 40.6334, lon: -73.9968, zip: "11219" },
     MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
   };
 
@@ -698,16 +698,25 @@
   }
 
   function fetchSunset(lat, lon, dateStr) {
-    var url = "https://www.hebcal.com/zmanim?cfg=json&latitude=" + lat + "&longitude=" + lon + "&tzid=America%2FNew_York&date=" + dateStr;
+    // US Naval Observatory API - most accurate sunset source, supports CORS
+    var url = "https://aa.usno.navy.mil/api/rstt/oneday?date=" + dateStr +
+      "&coords=" + lat + "," + lon + "&tz=-4&dst=false&ID=ZmanimGen";
     return fetch(url).then(function(r) {
-      if (!r.ok) throw new Error("Zmanim API status " + r.status);
+      if (!r.ok) throw new Error("USNO API status " + r.status);
       return r.json();
     }).then(function(data) {
-      var sunset = data.times && data.times.sunset;
-      if (!sunset) throw new Error("No sunset in Zmanim response");
-      var m = sunset.match(/T(\d{2}):(\d{2}):(\d{2})/);
-      if (!m) throw new Error("Cannot parse sunset: " + sunset);
-      return { h: parseInt(m[1], 10), m: parseInt(m[2], 10), s: parseInt(m[3], 10) };
+      var sundata = data.properties && data.properties.data;
+      if (!sundata) throw new Error("No data in USNO response");
+      // Find sunset in sundata.sundata array
+      var sunEvents = sundata.sundata || [];
+      for (var i = 0; i < sunEvents.length; i++) {
+        if (sunEvents[i].phen === "S") {
+          // time format "HH:MM"
+          var parts = sunEvents[i].time.split(":");
+          return { h: parseInt(parts[0], 10), m: parseInt(parts[1], 10), s: 0 };
+        }
+      }
+      throw new Error("Sunset not found in USNO response");
     });
   }
   function fetchZmanim(zip, lat, lon) {
@@ -737,21 +746,39 @@
   }
 
   function fetchLocation(prefix, zip, lat, lon) {
+    var candleDateStr = "";
+
     return fetchZmanim(zip, lat, lon)
       .then(function(data) {
         applyZmanim(data, prefix);
+        var cd = window.__candleDates;
+        if (cd && cd.length > 0) candleDateStr = cd[0].substring(0, 10);
       })
       .catch(function(err) {
         setStatus("⚠️ Zmanim fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
       })
       .then(function() {
         return fetchWeather(lat, lon)
-          .then(function(wdata) {
-            applyWeather(wdata, prefix);
-            setStatus("Done! Zmanim via Hebcal (b=22).");
-          })
+          .then(function(wdata) { applyWeather(wdata, prefix); })
           .catch(function(err) {
             setStatus("⚠️ Weather fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
+          });
+      })
+      .then(function() {
+        if (!candleDateStr) return;
+        return fetchSunset(lat, lon, candleDateStr)
+          .then(function(sunset) {
+            var totalSec = sunset.h * 3600 + sunset.m * 60 + sunset.s;
+            var clSec = totalSec - 22 * 60;
+            var clMin = Math.floor(clSec / 60);
+            var clH = Math.floor(clMin / 60) % 12 || 12;
+            var clM = clMin % 60;
+            var clTime = clH + ":" + (clM < 10 ? "0" : "") + clM;
+            document.getElementById("candle" + prefix).value = clTime;
+            setStatus("Done! USNO sunset " + candleDateStr + ": " + sunset.h + ":" + (sunset.m < 10 ? "0" : "") + sunset.m + " → Candle: " + clTime);
+          })
+          .catch(function(err) {
+            setStatus("⚠️ Sunset fetch failed: " + err.message + ". Candle time from Hebcal.");
           });
       });
   }
@@ -999,7 +1026,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v2.0";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v2.1";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
