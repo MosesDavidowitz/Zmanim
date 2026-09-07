@@ -658,69 +658,54 @@
     var daily = wdata.daily;
     if (!daily || !daily.apparent_temperature_max) return;
 
-    // Get the candle dates from Hebcal to find correct day indices in Open-Meteo
     var candleDates = window.__candleDates || [];
     var times = daily.time || [];
 
-    function getIdx(isoDate) {
-      if (!isoDate) return -1;
-      var d = isoDate.substring(0, 10); // "YYYY-MM-DD"
-      var idx = times.indexOf(d);
-      return idx !== -1 ? idx : -1;
+    function getIdx(dateStr) {
+      if (!dateStr) return -1;
+      var d = dateStr.substring(0, 10);
+      return times.indexOf(d);
     }
 
-    // Day 1 = erev candle date (the day candle lighting falls on)
-    // Day 2 = next day (second day of Yom Tov)
-    var candleDate1 = candleDates[0] ? candleDates[0].substring(0, 10) : "";
-    var candleDate2 = candleDates[1] ? candleDates[1].substring(0, 10) : "";
+    var candleDate1 = candleDates.length > 0 ? candleDates[0].substring(0, 10) : "";
+    var candleDate2 = candleDates.length > 1 ? candleDates[1].substring(0, 10) : "";
 
+    // idx of the erev (candle lighting) day in Open-Meteo array
     var idx1 = getIdx(candleDate1);
-    if (idx1 === -1) idx1 = 1; // fallback: tomorrow
 
-    // For the Yom Tov day itself (Shabbos), it's the day AFTER erev candle lighting
-    var ytIdx1 = idx1 + 1 < daily.apparent_temperature_max.length ? idx1 + 1 : idx1;
-    var ytIdx2 = candleDate2 ? (getIdx(candleDate2) !== -1 ? getIdx(candleDate2) + 1 : ytIdx1 + 1) : ytIdx1 + 1;
-    if (ytIdx2 >= daily.apparent_temperature_max.length) ytIdx2 = ytIdx1;
+    // If no candle date found, find next Friday or Saturday in times array as fallback
+    if (idx1 === -1) {
+      for (var t = 0; t < times.length; t++) {
+        var td = new Date(times[t] + "T12:00:00");
+        var dow = td.getDay();
+        if (dow === 5 || dow === 6) { idx1 = t; break; }
+      }
+    }
+    if (idx1 === -1) idx1 = 1;
 
-    var hi1 = Math.round(daily.apparent_temperature_max[ytIdx1] || 0);
-    var lo1 = Math.round(daily.apparent_temperature_min[ytIdx1] || 0);
-    var hi2 = Math.round(daily.apparent_temperature_max[ytIdx2] || hi1);
-    var lo2 = Math.round(daily.apparent_temperature_min[ytIdx2] || lo1);
+    var ytIdx1 = Math.min(idx1 + 1, daily.apparent_temperature_max.length - 1);
+    var idx2erev = getIdx(candleDate2);
+    var ytIdx2 = idx2erev !== -1 ? Math.min(idx2erev + 1, daily.apparent_temperature_max.length - 1) : Math.min(ytIdx1 + 1, daily.apparent_temperature_max.length - 1);
 
-    document.getElementById("high" + prefix).value = hi1;
-    document.getElementById("low" + prefix).value = lo1;
-    document.getElementById("high2" + prefix).value = hi2;
-    document.getElementById("low2" + prefix).value = lo2;
+    document.getElementById("high" + prefix).value = Math.round(daily.apparent_temperature_max[ytIdx1] || 0);
+    document.getElementById("low" + prefix).value = Math.round(daily.apparent_temperature_min[ytIdx1] || 0);
+    document.getElementById("high2" + prefix).value = Math.round(daily.apparent_temperature_max[ytIdx2] || 0);
+    document.getElementById("low2" + prefix).value = Math.round(daily.apparent_temperature_min[ytIdx2] || 0);
 
-    // Weathercode at noon of each Yom Tov day (hour = ytIdx * 24 + 12)
     var wc = (wdata.hourly && wdata.hourly.weathercode) ? wdata.hourly.weathercode : [];
-    var code1 = wc[ytIdx1 * 24 + 12] != null ? wc[ytIdx1 * 24 + 12] : wc[wc.length - 1];
+    var code1 = wc[ytIdx1 * 24 + 12] != null ? wc[ytIdx1 * 24 + 12] : (wc[wc.length - 1] || 0);
     var code2 = wc[ytIdx2 * 24 + 12] != null ? wc[ytIdx2 * 24 + 12] : code1;
     document.getElementById("emoji" + prefix).value = weatherEmoji(code1);
     document.getElementById("emoji2" + prefix).value = weatherEmoji(code2);
 
-    // Candle lighting = sunset on erev (idx1) minus 22 minutes
+    // Candle lighting = sunset on erev day (idx1) minus 22 minutes
     if (daily.sunset && daily.sunset[idx1]) {
       var sm = daily.sunset[idx1].match(/T(\d{2}):(\d{2})/);
       if (sm) {
         var totalMin = parseInt(sm[1], 10) * 60 + parseInt(sm[2], 10) - 22;
-        var clH = Math.floor(totalMin / 60);
+        var clH = Math.floor(totalMin / 60) % 12 || 12;
         var clM = totalMin % 60;
-        var h12 = clH % 12; if (h12 === 0) h12 = 12;
-        document.getElementById("candle" + prefix).value = h12 + ":" + (clM < 10 ? "0" : "") + clM;
-      }
-    }
-
-    // 2nd night candle lighting = sunset on erev day 2 (idx for candleDate2) minus 22 min
-    var idx2erev = candleDate2 ? getIdx(candleDate2) : -1;
-    if (idx2erev !== -1 && daily.sunset && daily.sunset[idx2erev]) {
-      var sm2 = daily.sunset[idx2erev].match(/T(\d{2}):(\d{2})/);
-      if (sm2) {
-        var totalMin2 = parseInt(sm2[1], 10) * 60 + parseInt(sm2[2], 10);
-        // 2nd night: can light from existing flame once stars out = no offset, just after sunset
-        // but Tomche Shabbos shows same -0 or tzeit. Use sunset time directly (motzei = sunset + 72)
-        // Actually 2nd night candle lighting is shown as a separate "candle lighting" event by Hebcal
-        // which we already have from applyZmanim - so leave that field as-is, don't override
+        document.getElementById("candle" + prefix).value = clH + ":" + (clM < 10 ? "0" : "") + clM;
       }
     }
   }
