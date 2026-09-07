@@ -718,21 +718,54 @@
     }
   }
 
+  function fetchSunset(lat, lon, dateStr) {
+    var url = "https://api.sunrise-sunset.org/json?lat=" + lat + "&lng=" + lon + "&date=" + dateStr + "&formatted=0";
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error("Sunset API status " + r.status);
+      return r.json();
+    }).then(function(data) {
+      if (data.status !== "OK") throw new Error("Sunset API error");
+      // Returns UTC ISO string — convert to NY local time
+      var utcStr = data.results.sunset;
+      var utcDate = new Date(utcStr);
+      var nyStr = utcDate.toLocaleString("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hour12: false });
+      // nyStr like "19:18"
+      var parts = nyStr.split(":");
+      return { h: parseInt(parts[0], 10), m: parseInt(parts[1], 10) };
+    });
+  }
   function fetchLocation(prefix, zip, lat, lon) {
+    var candleDateStr = "";
+
     return fetchZmanim(zip)
       .then(function(data) {
         applyZmanim(data, prefix);
+        var cd = window.__candleDates;
+        if (cd && cd.length > 0) candleDateStr = cd[0].substring(0, 10);
       })
       .catch(function(err) {
         setStatus("⚠️ Zmanim fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
       })
       .then(function() {
         return fetchWeather(lat, lon)
-          .then(function(wdata) {
-            applyWeather(wdata, prefix);
-          })
+          .then(function(wdata) { applyWeather(wdata, prefix); })
           .catch(function(err) {
             setStatus("⚠️ Weather fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
+          });
+      })
+      .then(function() {
+        if (!candleDateStr) return;
+        return fetchSunset(lat, lon, candleDateStr)
+          .then(function(sunset) {
+            var totalMin = sunset.h * 60 + sunset.m - 22;
+            var clH = Math.floor(totalMin / 60) % 12 || 12;
+            var clM = totalMin % 60;
+            var clTime = clH + ":" + (clM < 10 ? "0" : "") + clM;
+            document.getElementById("candle" + prefix).value = clTime;
+            setStatus("Done! Sunset: " + sunset.h + ":" + (sunset.m < 10 ? "0" : "") + sunset.m + " → Candle lighting: " + clTime);
+          })
+          .catch(function(err) {
+            setStatus("⚠️ Sunset fetch failed: " + err.message + ". Candle time may be off.");
           });
       });
   }
@@ -980,7 +1013,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.4";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.5";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
