@@ -543,8 +543,22 @@
         candles.push(formatTimeFromIso(it.date));
         candleDates.push(it.date); // keep ISO date for day-name lookup
       } else if (it.category === "havdalah") {
-        havdalah = formatTimeFromIso(it.date);
-        havdalahDate = dateFromIso(it.date);
+        // Only accept havdalah within 3 days of the first candle lighting
+        // to prevent the next Shabbos's havdalah from being picked up
+        var havdalahIsoDate = dateFromIso(it.date);
+        if (candles.length === 0) {
+          // No candles yet, accept tentatively
+          havdalah = formatTimeFromIso(it.date);
+          havdalahDate = havdalahIsoDate;
+        } else {
+          var firstCandleDate = new Date(candleDates[0].substring(0, 10));
+          var hDate = new Date(havdalahIsoDate);
+          var diffDays = (hDate - firstCandleDate) / (1000 * 60 * 60 * 24);
+          if (diffDays >= 0 && diffDays <= 4) {
+            havdalah = formatTimeFromIso(it.date);
+            havdalahDate = havdalahIsoDate;
+          }
+        }
       } else if (it.category === "parashat" && prefix === "BK") {
         parsha = it.hebrew || it.title.replace(/^Parashat\s+/, "");
       } else if (it.category === "mevarchim" && prefix === "BK") {
@@ -612,7 +626,9 @@
     if (havdalah) document.getElementById("motzei" + prefix).value = havdalah;
 
     if (prefix === "BK") {
-      if (parsha) {
+      if (isYomTov && yomTovName) {
+        document.getElementById("parsha").value = yomTovName;
+      } else if (parsha) {
         document.getElementById("parsha").value = parsha;
       } else if (yomTovName) {
         document.getElementById("parsha").value = yomTovName;
