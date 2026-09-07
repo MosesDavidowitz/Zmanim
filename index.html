@@ -605,6 +605,13 @@
       window.__isYomTov = isYomTov;
       window.__yomTovName = yomTovName;
       window.__candleDates = candleDates;
+      // If it's a real Yom Tov, clear the special Shabbat additional field
+      if (isYomTov) {
+        var addEl = document.getElementById("additionalText");
+        addEl.value = "";
+        addEl.disabled = true;
+        document.getElementById("includeAdditional").checked = false;
+      }
     }
 
     if (candles.length >= 1) document.getElementById("candle" + prefix).value = candles[0];
