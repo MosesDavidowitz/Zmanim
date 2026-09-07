@@ -443,14 +443,17 @@
     return nyDate.getFullYear() + "-" + pad(nyDate.getMonth() + 1) + "-" + pad(nyDate.getDate());
   }
 
-  function formatTimeFromIso(iso) {
-    var m = iso.match(/T(\d{2}):(\d{2})/);
+  function formatTimeFromIso(iso, roundUp) {
+    var m = iso.match(/T(\d{2}):(\d{2}):?(\d{2})?/);
     if (!m) return "";
     var h = parseInt(m[1], 10);
-    var min = m[2];
+    var min = parseInt(m[2], 10);
+    var sec = parseInt(m[3] || 0, 10);
+    if (roundUp && sec > 0) min += 1; // round up if seconds present
+    if (min >= 60) { min = 0; h += 1; }
     var h12 = h % 12;
     if (h12 === 0) h12 = 12;
-    return h12 + ":" + min;
+    return h12 + ":" + (min < 10 ? "0" : "") + min;
   }
 
   function dateFromIso(iso) {
@@ -540,7 +543,7 @@
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (it.category === "candles") {
-        candles.push(formatTimeFromIso(it.date));
+        candles.push(formatTimeFromIso(it.date, false));
         candleDates.push(it.date); // keep ISO date for day-name lookup
       } else if (it.category === "havdalah") {
         // Only accept havdalah within 3 days of the first candle lighting
@@ -548,7 +551,7 @@
         var havdalahIsoDate = dateFromIso(it.date);
         if (candles.length === 0) {
           // No candles yet, accept tentatively
-          havdalah = formatTimeFromIso(it.date);
+          havdalah = formatTimeFromIso(it.date, true);
           havdalahDate = havdalahIsoDate;
         } else {
           var firstCandleDate = new Date(candleDates[0].substring(0, 10));
@@ -699,7 +702,8 @@
     document.getElementById("emoji2" + prefix).value = weatherEmoji(code2);
 
     // DEBUG - remove after confirming
-    setStatus("DEBUG: candleDate1=" + candleDate1 + " idx1=" + idx1 + " times[0]=" + (times[0]||"?") + " sunset[idx1]=" + (daily.sunset && daily.sunset[idx1] ? daily.sunset[idx1] : "none"));
+    var dbgCandle = candleDate1 + " idx=" + idx1 + " t[0]=" + (times[0]||"?") + " sunset=" + (daily.sunset && daily.sunset[idx1] ? daily.sunset[idx1] : "none");
+    setStatus("Done! | DBG: " + dbgCandle);
     // Candle lighting = sunset minus 22 min, always floor (round down)
     if (daily.sunset && daily.sunset[idx1]) {
       var sm = daily.sunset[idx1].match(/T(\d{2}):(\d{2}):?(\d{2})?/);
@@ -748,7 +752,6 @@
     }
 
     Promise.all(tasks).then(function() {
-      setStatus("Done! Review and edit anything that looks off.");
       updatePreview();
     });
   }
