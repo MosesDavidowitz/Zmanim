@@ -286,7 +286,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "2.5";
+  var APP_VERSION = "2.6";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -798,7 +798,6 @@
     candles.forEach(function(c, idx) {
       var dateStr = dateOnlyFromItem(c);
       var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
-      if (candles.length > 1) label += " (" + dayName(dateStr) + ")";
       rows.push('<div class="zman-row"><label>' + escapeHtml(label) + '</label><input type="text" class="zman-candle" data-date="' + escapeAttr(dateStr) + '" value="' + escapeAttr(formatTimeFromIso(c.date)) + '"></div>');
     });
     var motzeiLabel = baseBlock.isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos";
@@ -1009,7 +1008,6 @@
       raw += "\n🕰 *Zmanim (" + locationName + "):*\n";
       z.candles.forEach(function(c, idx) {
         var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
-        if (z.candles.length > 1 && c.date) label += " (" + dayName(c.date) + ")";
         raw += "• " + label + ": " + c.time + "  \n";
       });
       raw += "• " + (isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos") + ": " + z.havdalah + "  \n";
