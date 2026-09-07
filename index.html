@@ -624,7 +624,7 @@
 
   function fetchWeather(lat, lon) {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
-      "&daily=apparent_temperature_max,apparent_temperature_min,sunset&hourly=weathercode&forecast_days=4&temperature_unit=fahrenheit&timezone=America%2FNew_York";
+      "&daily=apparent_temperature_max,apparent_temperature_min,sunset&hourly=weathercode&forecast_days=8&temperature_unit=fahrenheit&timezone=America%2FNew_York";
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Weather returned status " + r.status);
       return r.json();
