@@ -218,6 +218,30 @@
         </select>
       </div>
     </div>
+    <div class="row" id="weather2BKWrap" style="display:none;">
+      <div>
+        <label for="high2BK">High °F (Day 2)</label>
+        <input type="text" id="high2BK" value="">
+      </div>
+      <div>
+        <label for="low2BK">Low °F (Day 2)</label>
+        <input type="text" id="low2BK" value="">
+      </div>
+      <div>
+        <label for="emoji2BK">Icon (Day 2)</label>
+        <select id="emoji2BK">
+          <option value="☀️|Sunny">☀️ Sunny</option>
+          <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
+          <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
+          <option value="☁️|Cloudy">☁️ Cloudy</option>
+          <option value="🌫️|Foggy">🌫️ Fog</option>
+          <option value="🌧️|Rainy">🌧️ Rain</option>
+          <option value="🌨️|Snow Showers">🌨️ Snow Showers</option>
+          <option value="❄️|Snowy">❄️ Snow</option>
+          <option value="⛈️|Thunderstorms">⛈️ Thunderstorm</option>
+        </select>
+      </div>
+    </div>
     <div class="row">
       <div>
         <label for="candleBK">Candle Lighting</label>
@@ -248,6 +272,30 @@
       <div>
         <label for="emojiMC">Icon</label>
         <select id="emojiMC">
+          <option value="☀️|Sunny">☀️ Sunny</option>
+          <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
+          <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
+          <option value="☁️|Cloudy">☁️ Cloudy</option>
+          <option value="🌫️|Foggy">🌫️ Fog</option>
+          <option value="🌧️|Rainy">🌧️ Rain</option>
+          <option value="🌨️|Snow Showers">🌨️ Snow Showers</option>
+          <option value="❄️|Snowy">❄️ Snow</option>
+          <option value="⛈️|Thunderstorms">⛈️ Thunderstorm</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="weather2MCWrap" style="display:none;">
+      <div>
+        <label for="high2MC">High °F (Day 2)</label>
+        <input type="text" id="high2MC" value="">
+      </div>
+      <div>
+        <label for="low2MC">Low °F (Day 2)</label>
+        <input type="text" id="low2MC" value="">
+      </div>
+      <div>
+        <label for="emoji2MC">Icon (Day 2)</label>
+        <select id="emoji2MC">
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -556,24 +604,32 @@
   }
 
   function applyWeather(wdata, prefix) {
-    var idx = 1; // index 0 = today, index 1 = tomorrow (Open-Meteo daily array, in requested timezone)
-    if (!wdata.daily || !wdata.daily.apparent_temperature_max || wdata.daily.apparent_temperature_max.length <= idx) {
-      idx = 0;
-    }
-    var hi = wdata.daily.apparent_temperature_max[idx];
-    var lo = wdata.daily.apparent_temperature_min[idx];
-    document.getElementById("high" + prefix).value = Math.round(hi);
-    document.getElementById("low" + prefix).value = Math.round(lo);
+    var daily = wdata.daily;
+    if (!daily || !daily.apparent_temperature_max) return;
 
-    // Use hourly weathercode at tomorrow's midday (hour index 36 = day1, hour 12)
-    // rather than the daily aggregate, which reports the day's worst-case code.
-    var code;
-    if (wdata.hourly && wdata.hourly.weathercode && wdata.hourly.weathercode.length > 36) {
-      code = wdata.hourly.weathercode[36];
-    } else if (wdata.hourly && wdata.hourly.weathercode) {
-      code = wdata.hourly.weathercode[wdata.hourly.weathercode.length - 1];
+    // idx 0 = today, 1 = tomorrow (day 1 of Yom Tov), 2 = day after (day 2)
+    var idx1 = 1;
+    var idx2 = 2;
+
+    var hi1 = Math.round(daily.apparent_temperature_max[idx1] || 0);
+    var lo1 = Math.round(daily.apparent_temperature_min[idx1] || 0);
+    var hi2 = daily.apparent_temperature_max[idx2] != null ? Math.round(daily.apparent_temperature_max[idx2]) : hi1;
+    var lo2 = daily.apparent_temperature_min[idx2] != null ? Math.round(daily.apparent_temperature_min[idx2]) : lo1;
+
+    document.getElementById("high" + prefix).value = hi1;
+    document.getElementById("low" + prefix).value = lo1;
+    document.getElementById("high2" + prefix).value = hi2;
+    document.getElementById("low2" + prefix).value = lo2;
+
+    // Hourly weathercode: hour 36 = tomorrow noon, hour 60 = day-after noon
+    var code1, code2;
+    if (wdata.hourly && wdata.hourly.weathercode) {
+      var wc = wdata.hourly.weathercode;
+      code1 = wc[36] != null ? wc[36] : wc[wc.length - 1];
+      code2 = wc[60] != null ? wc[60] : code1;
     }
-    document.getElementById("emoji" + prefix).value = weatherEmoji(code);
+    document.getElementById("emoji" + prefix).value = weatherEmoji(code1);
+    document.getElementById("emoji2" + prefix).value = weatherEmoji(code2);
   }
 
   function fetchLocation(prefix, zip, lat, lon) {
@@ -630,23 +686,23 @@
     return DAY_NAMES[d.getDay()];
   }
 
-  // Yom Tov emoji pairs (never ✡)
+  // Yom Tov emojis — same emoji both sides (never ✡)
   var YOM_TOV_EMOJIS = {
-    "\u05e8\u05d0\u05e9 \u05d4\u05e9\u05e0\u05d4": ["🍎", "🍯"],   // ראש השנה
-    "\u05d9\u05d5\u05dd \u05db\u05d9\u05e4\u05d5\u05e8": ["🤍", "📖"],   // יום כיפור
-    "\u05e1\u05d5\u05db\u05d5\u05ea": ["🌿", "🍋"],                 // סוכות
-    "\u05e9\u05de\u05d9\u05e0\u05d9 \u05e2\u05e6\u05e8\u05ea": ["🌟", "📜"],  // שמיני עצרת
-    "\u05e9\u05de\u05d7\u05ea \u05ea\u05d5\u05e8\u05d4": ["📜", "🎉"],  // שמחת תורה
-    "\u05e4\u05e1\u05d7": ["🍷", "🫓"],                             // פסח
-    "\u05e9\u05d1\u05d5\u05e2\u05d5\u05ea": ["📜", "🌸"],           // שבועות
+    "\u05e8\u05d0\u05e9 \u05d4\u05e9\u05e0\u05d4": "🍎",   // ראש השנה
+    "\u05d9\u05d5\u05dd \u05db\u05d9\u05e4\u05d5\u05e8": "🤍",  // יום כיפור
+    "\u05e1\u05d5\u05db\u05d5\u05ea": "🌿",                  // סוכות
+    "\u05e9\u05de\u05d9\u05e0\u05d9 \u05e2\u05e6\u05e8\u05ea": "📜", // שמיני עצרת
+    "\u05e9\u05de\u05d7\u05ea \u05ea\u05d5\u05e8\u05d4": "🎉",  // שמחת תורה
+    "\u05e4\u05e1\u05d7": "🍷",                               // פסח
+    "\u05e9\u05d1\u05d5\u05e2\u05d5\u05ea": "🌸",            // שבועות
   };
 
-  function getYomTovEmojis(name) {
-    if (!name) return null;
+  function getYomTovEmoji(name) {
+    if (!name) return "🌟";
     for (var key in YOM_TOV_EMOJIS) {
       if (name.indexOf(key) !== -1) return YOM_TOV_EMOJIS[key];
     }
-    return ["🌟", "🌟"]; // generic fallback for unknown Yom Tov
+    return "🌟";
   }
 
   function updatePreview() {
@@ -656,31 +712,48 @@
     var yomTovName = window.__yomTovName || "";
     var candleDates = window.__candleDates || [];
 
+    var isTwoDayBK = !document.getElementById("candle2BKWrap").classList.contains("hidden");
+    var isTwoDayMC = !document.getElementById("candle2MCWrap").classList.contains("hidden");
+
+    // Show/hide day-2 weather rows
+    document.getElementById("weather2BKWrap").style.display = isTwoDayBK ? "" : "none";
+    document.getElementById("weather2MCWrap").style.display = (isTwoDayMC && document.getElementById("addMonticello").checked) ? "" : "none";
+
+    // Day 1 weather
     var highBK = document.getElementById("highBK").value || "__";
     var lowBK = document.getElementById("lowBK").value || "__";
     var emojiValBK = document.getElementById("emojiBK").value || "🌤️|Mostly Sunny";
-    var emojiPartsBK = emojiValBK.split("|");
-    var emojiBK = emojiPartsBK[0];
-    var conditionBK = emojiPartsBK[1] || "";
+    var partsB1 = emojiValBK.split("|");
+    var emojiBK = partsB1[0]; var conditionBK = partsB1[1] || "";
+
+    // Day 2 weather
+    var high2BK = document.getElementById("high2BK").value || highBK;
+    var low2BK = document.getElementById("low2BK").value || lowBK;
+    var emojiVal2BK = document.getElementById("emoji2BK").value || emojiValBK;
+    var partsB2 = emojiVal2BK.split("|");
+    var emoji2BK = partsB2[0]; var condition2BK = partsB2[1] || conditionBK;
 
     var addMonticello = document.getElementById("addMonticello").checked;
     var highMC = document.getElementById("highMC").value || "__";
     var lowMC = document.getElementById("lowMC").value || "__";
     var emojiValMC = document.getElementById("emojiMC").value || "🌤️|Mostly Sunny";
-    var emojiPartsMC = emojiValMC.split("|");
-    var emojiMC = emojiPartsMC[0];
-    var conditionMC = emojiPartsMC[1] || "";
+    var partsMC1 = emojiValMC.split("|");
+    var emojiMC = partsMC1[0]; var conditionMC = partsMC1[1] || "";
+
+    var high2MC = document.getElementById("high2MC").value || highMC;
+    var low2MC = document.getElementById("low2MC").value || lowMC;
+    var emojiVal2MC = document.getElementById("emoji2MC").value || emojiValMC;
+    var partsMC2 = emojiVal2MC.split("|");
+    var emoji2MC = partsMC2[0]; var condition2MC = partsMC2[1] || conditionMC;
 
     var candleBK = document.getElementById("candleBK").value || "__:__";
     var candle2BK = document.getElementById("candle2BK").value;
     var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
-    var isTwoDayBK = !document.getElementById("candle2BKWrap").classList.contains("hidden");
     var motzeiLabelBK = (isTwoDayBK || isYomTov) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
     var candleMC = document.getElementById("candleMC").value || "__:__";
     var candle2MC = document.getElementById("candle2MC").value;
     var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
-    var isTwoDayMC = !document.getElementById("candle2MCWrap").classList.contains("hidden");
     var motzeiLabelMC = (isTwoDayMC || isYomTov) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
     var quote = document.getElementById("quote").value || "____";
@@ -690,48 +763,44 @@
       parshaLine += " - " + additionalText;
     }
 
-    // Header: Yom Tov vs Shabbos
-    var headerText, leftEmoji, rightEmoji;
+    // Header emoji — same on both sides
+    var headerText, headerEmoji;
     if (isYomTov) {
       headerText = "A Git Yom Tov";
-      var ytEmojis = getYomTovEmojis(yomTovName);
-      leftEmoji = ytEmojis[0];
-      rightEmoji = ytEmojis[1];
+      headerEmoji = getYomTovEmoji(yomTovName);
     } else {
       headerText = "A Git Shabbos";
-      leftEmoji = window.__flower || "🌼";
-      rightEmoji = leftEmoji;
+      headerEmoji = window.__flower || "🌼";
     }
 
-    // Parsha label
-    var parshaLabel = isYomTov ? "\u05d9\u05d5\u05dd \u05d8\u05d5\u05d1" : "Parsha"; // יום טוב or Parsha
+    // Parsha/Yom Tov label — always English
+    var parshaLabel = isYomTov ? "Yom Tov" : "Parsha";
 
-    // Day labels for weather when 2-day Yom Tov
-    var day1Label = candleDates.length >= 1 ? dayNameFromIso(candleDates[0]) : "";
-    var day2Label = candleDates.length >= 2 ? dayNameFromIso(candleDates[1]) : "";
-    // The actual Yom Tov days are the days AFTER each candle lighting (candle on Fri eve = Shabbos day)
-    // But candleDates[0] is the Erev candle date (e.g. Friday), so day1 = Saturday
-    // We shift by 1 to get the actual Yom Tov day
-    function nextDay(dayName) {
-      var idx = DAY_NAMES.indexOf(dayName);
-      if (idx === -1) return dayName;
-      return DAY_NAMES[(idx + 1) % 7];
+    // Day names for 2-day Yom Tov weather labels
+    function nextDay(iso) {
+      if (!iso) return "";
+      var m = iso.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (!m) return "";
+      var parts = m[1].split("-");
+      var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      d.setDate(d.getDate() + 1); // candle date is Erev, so +1 = actual Yom Tov day
+      return DAY_NAMES[d.getDay()];
     }
-    var ytDay1 = day1Label ? nextDay(day1Label) : "";
-    var ytDay2 = day2Label ? nextDay(day2Label) : "";
+    var ytDay1 = nextDay(candleDates[0] || "");
+    var ytDay2 = nextDay(candleDates[1] || "");
 
     var raw =
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
-"         *" + leftEmoji + " " + headerText + " " + rightEmoji + "*\n" +
+"         *" + headerEmoji + " " + headerText + " " + headerEmoji + "*\n" +
 "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
 "📜 *" + parshaLabel + ": " + parshaLine + "*\n";
 
-    // Weather — one line normally, two lines for 2-day Yom Tov
+    // Weather
     if (isTwoDayBK && ytDay1 && ytDay2) {
       raw += "\n" + emojiBK + " *Weather (Brooklyn - " + ytDay1 + "):*\n" +
 conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
-      raw += "\n" + emojiBK + " *Weather (Brooklyn - " + ytDay2 + "):*\n" +
-conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
+      raw += "\n" + emoji2BK + " *Weather (Brooklyn - " + ytDay2 + "):*\n" +
+condition2BK + "; Feel: High " + high2BK + "°  Low " + low2BK + "°\n";
     } else {
       raw += "\n" + emojiBK + " *Weather (Brooklyn):*\n" +
 conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
@@ -741,8 +810,8 @@ conditionBK + "; Feel: High " + highBK + "°  Low " + lowBK + "°\n";
       if (isTwoDayMC && ytDay1 && ytDay2) {
         raw += "\n" + emojiMC + " *Weather (Monticello - " + ytDay1 + "):*\n" +
 conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
-        raw += "\n" + emojiMC + " *Weather (Monticello - " + ytDay2 + "):*\n" +
-conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
+        raw += "\n" + emoji2MC + " *Weather (Monticello - " + ytDay2 + "):*\n" +
+condition2MC + "; Feel: High " + high2MC + "°  Low " + low2MC + "°\n";
       } else {
         raw += "\n" + emojiMC + " *Weather (Monticello):*\n" +
 conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
@@ -835,9 +904,10 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
       updatePreview();
     });
 
-    var textFields = ["parsha", "additionalText", "highBK", "lowBK", "highMC", "lowMC",
+    var textFields = ["parsha", "additionalText", "highBK", "lowBK", "high2BK", "low2BK",
+                       "highMC", "lowMC", "high2MC", "low2MC",
                        "candleBK", "candle2BK", "motzeiBK", "candleMC", "candle2MC", "motzeiMC", "quote",
-                       "emojiBK", "emojiMC"];
+                       "emojiBK", "emoji2BK", "emojiMC", "emoji2MC"];
     for (var i = 0; i < textFields.length; i++) {
       document.getElementById(textFields[i]).addEventListener("input", updatePreview);
       document.getElementById(textFields[i]).addEventListener("change", updatePreview);
