@@ -476,31 +476,50 @@
     return "🌤️|Mostly Sunny";
   }
 
-  function getNextShabbatRange() {
-    var now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    var day = now.getDay();
-    var daysToFri = (5 - day + 7) % 7;
-    if (daysToFri === 0 && now.getHours() >= 20) daysToFri = 7;
-    if (day === 6) daysToFri = 6;
-    var friday = new Date(now);
-    friday.setDate(now.getDate() + daysToFri);
-    // End on Monday to always capture Sunday-night havdalah for 2-day Yom Tov
-    var monday = new Date(friday);
-    monday.setDate(friday.getDate() + 3);
-    function fmt(d) {
-      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-    }
-    return { start: fmt(friday), end: fmt(monday) };
-  }
-
-  function fetchZmanim(zip) {
-    var range = getNextShabbatRange();
-    var url = "https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&nx=on&mf=on&ss=on&s=on&c=on" +
-      "&geo=zip&zip=" + zip + "&m=72&b=22&lg=he&mvch=on&leyning=off" +
-      "&start=" + range.start + "&end=" + range.end;
+  function fetchZmanimForDate(zip, date) {
+    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip + "&m=72&b=22&lg=he&mvch=on&d=on&dt=" + date;
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
+    });
+  }
+
+  function getNextShabbatDateStr() {
+    var now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    var day = now.getDay();
+    var daysToSat = (6 - day + 7) % 7;
+    if (daysToSat === 0 && now.getHours() >= 20) daysToSat = 7;
+    var sat = new Date(now);
+    sat.setDate(now.getDate() + daysToSat);
+    return sat.getFullYear() + "-" + pad(sat.getMonth() + 1) + "-" + pad(sat.getDate());
+  }
+
+  function fetchZmanim(zip) {
+    var satDate = getNextShabbatDateStr();
+    // Parse Saturday date to compute Sunday
+    var parts = satDate.split("-");
+    var sat = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    var sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+    var sunDate = sun.getFullYear() + "-" + pad(sun.getMonth() + 1) + "-" + pad(sun.getDate());
+
+    // Fetch Shabbat/Yom Tov week, then also fetch Sunday to catch 2-day Yom Tov havdalah
+    return Promise.all([
+      fetchZmanimForDate(zip, satDate),
+      fetchZmanimForDate(zip, sunDate)
+    ]).then(function(results) {
+      // Merge items from both responses, deduplicating by date+category
+      var seen = {};
+      var merged = { items: [] };
+      [results[0], results[1]].forEach(function(data) {
+        (data.items || []).forEach(function(it) {
+          var key = it.category + "|" + it.date;
+          if (!seen[key]) {
+            seen[key] = true;
+            merged.items.push(it);
+          }
+        });
+      });
+      return merged;
     });
   }
 
