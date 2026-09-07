@@ -114,6 +114,18 @@
     text-overflow: ellipsis;
   }
   .event-date { font-size: 11px; color: #777; margin-top: 2px; }
+  .debug-row { text-align: center; margin-top: 10px; }
+  .debug-btn {
+    margin: 0;
+    background: #eee;
+    color: #444;
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .debug-btn.active {
+    background: #fff3cd;
+    color: #6b5200;
+  }
   .monticello-toggle {
     background: #fff;
     border-radius: 10px;
@@ -213,12 +225,15 @@
 
   <div class="card event-nav">
     <div class="event-nav-row">
-      <button id="prevEventBtn">◀ Previous</button>
+      <button id="prevEventBtn" disabled>◀ Previous</button>
       <div class="event-center">
-        <div class="event-name" id="selectedEventName">Finding next event...</div>
-        <div class="event-date" id="selectedEventDate"></div>
+        <div class="event-name" id="eventModeLabel">Upcoming Event</div>
+        <div class="event-date" id="selectedEventName">Finding next event...</div>
       </div>
-      <button id="nextEventBtn">Next ▶</button>
+      <button id="nextEventBtn" disabled>Next ▶</button>
+    </div>
+    <div class="debug-row">
+      <button class="debug-btn" id="debugModeBtn">Debug Mode</button>
     </div>
   </div>
 
@@ -286,7 +301,8 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "2.6";
+  var APP_VERSION = "2.7";
+  var DEBUG_CODE = "2026";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -342,6 +358,7 @@
     loadedEnd: null,
     locationData: { BK: null, MC: null },
     busy: false,
+    debugMode: false,
     upcomingBlockKey: ""
   };
 
@@ -418,10 +435,8 @@
 
   function setLoadedStatus(block) {
     if (!block) return;
-    var isUpcoming = state.upcomingBlockKey && blockKey(block) === state.upcomingBlockKey;
     var hasUnavailable = document.querySelector('#weatherRowsBK option[value="❔|Forecast unavailable"]:checked') !== null;
     var parts = [];
-    if (isUpcoming) parts.push("Upcoming event");
     parts.push("Loaded " + (block.displayEnglish || "Shabbos"));
     parts.push(prettyDateRange(block.startDate, block.endDate));
     parts.push("Zmanim loaded");
@@ -429,10 +444,57 @@
     setStatus(parts.join(" • "));
   }
 
+  function updateEventModeLabel(block) {
+    var mode = document.getElementById("eventModeLabel");
+    var name = document.getElementById("selectedEventName");
+    if (!block) {
+      mode.textContent = "Upcoming Event";
+      name.textContent = "Finding next event...";
+      return;
+    }
+    var isUpcoming = state.upcomingBlockKey && blockKey(block) === state.upcomingBlockKey;
+    mode.textContent = isUpcoming ? "Upcoming Event" : "Debug Event";
+    name.textContent = block.displayEnglish || "Shabbos";
+  }
+
+  function updateDebugControls() {
+    var btn = document.getElementById("debugModeBtn");
+    btn.textContent = state.debugMode ? "Debug Mode: ON" : "Debug Mode";
+    btn.classList.toggle("active", state.debugMode);
+    document.getElementById("prevEventBtn").disabled = state.busy || !state.debugMode || state.selectedIndex < 0;
+    document.getElementById("nextEventBtn").disabled = state.busy || !state.debugMode || state.selectedIndex < 0;
+  }
+
   function setBusy(isBusy) {
     state.busy = isBusy;
-    document.getElementById("prevEventBtn").disabled = isBusy || state.selectedIndex < 0;
-    document.getElementById("nextEventBtn").disabled = isBusy || state.selectedIndex < 0;
+    updateDebugControls();
+  }
+
+  function toggleDebugMode() {
+    if (state.busy) return;
+
+    if (state.debugMode) {
+      state.debugMode = false;
+      var upcomingIndex = state.blocks.findIndex(function(b) { return blockKey(b) === state.upcomingBlockKey; });
+      updateDebugControls();
+      if (upcomingIndex >= 0 && upcomingIndex !== state.selectedIndex) {
+        selectEvent(upcomingIndex);
+      } else {
+        updateEventModeLabel(state.selectedBlock);
+      }
+      return;
+    }
+
+    var entered = window.prompt("Enter debug code:");
+    if (entered === null) return;
+    if (String(entered).trim() !== DEBUG_CODE) {
+      window.alert("Incorrect debug code.");
+      return;
+    }
+
+    state.debugMode = true;
+    updateDebugControls();
+    updateEventModeLabel(state.selectedBlock);
   }
 
   function fetchQuotes() {
@@ -822,8 +884,7 @@
   }
 
   function populateEventHeader(block) {
-    document.getElementById("selectedEventName").textContent = block.displayEnglish || "Shabbos";
-    document.getElementById("selectedEventDate").textContent = prettyDateRange(block.startDate, block.endDate);
+    updateEventModeLabel(block);
     document.getElementById("parsha").value = block.displayHebrew || "";
     var add = document.getElementById("additionalText");
     var include = document.getElementById("includeAdditional");
@@ -900,7 +961,7 @@
   }
 
   function goNext() {
-    if (state.busy) return;
+    if (state.busy || !state.debugMode) return;
     if (state.selectedIndex < state.blocks.length - 1) {
       selectEvent(state.selectedIndex + 1);
       return;
@@ -920,7 +981,7 @@
   }
 
   function goPrevious() {
-    if (state.busy) return;
+    if (state.busy || !state.debugMode) return;
     if (state.selectedIndex > 0) {
       selectEvent(state.selectedIndex - 1);
       return;
@@ -1100,9 +1161,11 @@
 
     document.getElementById("prevEventBtn").addEventListener("click", goPrevious);
     document.getElementById("nextEventBtn").addEventListener("click", goNext);
+    document.getElementById("debugModeBtn").addEventListener("click", toggleDebugMode);
     document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
     document.getElementById("copyBtn").addEventListener("click", copyMessage);
 
+    updateDebugControls();
     updatePreview();
 
     if (location.protocol === "file:") {
