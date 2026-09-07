@@ -376,7 +376,7 @@
 
   // Brooklyn (zip 11219) and Monticello (zip 12701) coordinates
   var LOCATIONS = {
-    BK: { lat: 40.7128, lon: -74.0060, zip: "11219" },
+    BK: { lat: 40.7282, lon: -73.7949, zip: "11219" },
     MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
   };
 
@@ -479,12 +479,12 @@
     return "🌤️|Mostly Sunny";
   }
 
-  function fetchZmanimForDate(zip, date) {
-    // /shabbat endpoint with b=22 returns candle lighting at 22 min before sunset
-    // Use gy/gm/gd params to specify exact date, cfg=json for JSON output
+  function fetchZmanimForDate(zip, lat, lon, date) {
     var parts = date.split("-");
-    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip +
-      "&b=22&m=72&lg=he&mvch=on" +
+    // Use latitude/longitude so b= parameter is respected
+    var url = "https://www.hebcal.com/shabbat?cfg=json" +
+      "&latitude=" + lat + "&longitude=" + lon + "&tzid=America%2FNew_York" +
+      "&b=22&m=72&lg=he&mvch=on&leyning=off" +
       "&gy=" + parts[0] + "&gm=" + parseInt(parts[1]) + "&gd=" + parseInt(parts[2]);
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
@@ -502,34 +502,8 @@
     return sat.getFullYear() + "-" + pad(sat.getMonth() + 1) + "-" + pad(sat.getDate());
   }
 
-  function fetchZmanim(zip) {
-    var satDate = getNextShabbatDateStr();
-    // Parse Saturday date to compute Sunday
-    var parts = satDate.split("-");
-    var sat = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    var sun = new Date(sat); sun.setDate(sat.getDate() + 1);
-    var sunDate = sun.getFullYear() + "-" + pad(sun.getMonth() + 1) + "-" + pad(sun.getDate());
 
-    // Fetch Shabbat/Yom Tov week, then also fetch Sunday to catch 2-day Yom Tov havdalah
-    return Promise.all([
-      fetchZmanimForDate(zip, satDate),
-      fetchZmanimForDate(zip, sunDate)
-    ]).then(function(results) {
-      // Merge items from both responses, deduplicating by date+category
-      var seen = {};
-      var merged = { items: [] };
-      [results[0], results[1]].forEach(function(data) {
-        (data.items || []).forEach(function(it) {
-          var key = it.category + "|" + it.date;
-          if (!seen[key]) {
-            seen[key] = true;
-            merged.items.push(it);
-          }
-        });
-      });
-      return merged;
-    });
-  }
+
 
   function fetchWeather(lat, lon) {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
@@ -736,8 +710,34 @@
       return { h: parseInt(m[1], 10), m: parseInt(m[2], 10), s: parseInt(m[3], 10) };
     });
   }
+  function fetchZmanim(zip, lat, lon) {
+    var satDate = getNextShabbatDateStr();
+    var parts = satDate.split("-");
+    var sat = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    var sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+    var sunDate = sun.getFullYear() + "-" + pad(sun.getMonth() + 1) + "-" + pad(sun.getDate());
+
+    return Promise.all([
+      fetchZmanimForDate(zip, lat, lon, satDate),
+      fetchZmanimForDate(zip, lat, lon, sunDate)
+    ]).then(function(results) {
+      var seen = {};
+      var merged = { items: [] };
+      [results[0], results[1]].forEach(function(data) {
+        (data.items || []).forEach(function(it) {
+          var key = it.category + "|" + it.date;
+          if (!seen[key]) {
+            seen[key] = true;
+            merged.items.push(it);
+          }
+        });
+      });
+      return merged;
+    });
+  }
+
   function fetchLocation(prefix, zip, lat, lon) {
-    return fetchZmanim(zip)
+    return fetchZmanim(zip, lat, lon)
       .then(function(data) {
         applyZmanim(data, prefix);
       })
@@ -999,7 +999,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.9";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v2.0";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
