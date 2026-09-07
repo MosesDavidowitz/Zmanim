@@ -59,6 +59,32 @@
     cursor: pointer;
     margin-top: 10px;
   }
+  .event-nav {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .event-nav button {
+    margin-top: 0;
+    padding: 9px 10px;
+    background: #eee;
+    color: #333;
+    white-space: nowrap;
+  }
+  .event-nav button:disabled, .btn-fetch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .event-nav-label {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #444;
+    min-width: 0;
+  }
   .btn-fetch { background: #2563eb; color: #fff; width: 100%; }
   .btn-shuffle { background: #eee; color: #333; font-size: 13px; padding: 6px 10px; margin-top: 6px; }
   .btn-copy { background: #25D366; color: #fff; width: 100%; font-size: 16px; padding: 12px; }
@@ -160,16 +186,21 @@
 <div class="container">
   <div class="header-banner">
     <h1>Zmanim Generator</h1>
-    <div class="subtitle">Weekly Message Generator</div>
+    <div class="subtitle">Weekly Message Generator · <span id="versionTop">v2.3</span></div>
   </div>
 
   <div class="card">
-    <button class="btn-fetch" id="fetchBtn">🔄 Auto-fetch Parsha, Zmanim &amp; Weather</button>
+    <div class="event-nav">
+      <button id="prevEventBtn" type="button">← Previous</button>
+      <div class="event-nav-label" id="currentEventLabel">Finding next event…</div>
+      <button id="nextEventBtn" type="button">Next →</button>
+    </div>
+    <button class="btn-fetch" id="fetchBtn">🔄 Back to Current / Auto-fetch</button>
     <div class="status" id="status"></div>
   </div>
 
   <div class="card">
-    <label for="parsha" id="parshaFieldLabel">Parsha (Hebrew)</label>
+    <label for="parsha">Parsha (Hebrew)</label>
     <div class="row" style="align-items:flex-start;">
       <div style="flex: 1;">
         <input type="text" id="additionalText" placeholder="optional" disabled>
@@ -206,6 +237,7 @@
       <div>
         <label for="emojiBK">Icon</label>
         <select id="emojiBK">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -230,6 +262,7 @@
       <div>
         <label for="emoji2BK">Icon (Day 2)</label>
         <select id="emoji2BK">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -254,6 +287,7 @@
       <div>
         <label for="emoji3BK">Icon (Day 3)</label>
         <select id="emoji3BK">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -275,13 +309,15 @@
         <label for="candle2BK">Candle Lighting 2nd Night</label>
         <input type="text" id="candle2BK" value="">
       </div>
-      <div id="candle3BKWrap" class="hidden">
-        <label for="candle3BK">Candle Lighting 3rd Night</label>
-        <input type="text" id="candle3BK" value="">
-      </div>
       <div>
         <label for="motzeiBK" id="motzeiLabelBK">Motzei Shabbos</label>
         <input type="text" id="motzeiBK" value="">
+      </div>
+    </div>
+    <div class="row hidden" id="candle3BKWrap">
+      <div>
+        <label for="candle3BK">Candle Lighting 3rd Night</label>
+        <input type="text" id="candle3BK" value="">
       </div>
     </div>
   </div>
@@ -300,6 +336,7 @@
       <div>
         <label for="emojiMC">Icon</label>
         <select id="emojiMC">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -324,6 +361,7 @@
       <div>
         <label for="emoji2MC">Icon (Day 2)</label>
         <select id="emoji2MC">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -348,6 +386,7 @@
       <div>
         <label for="emoji3MC">Icon (Day 3)</label>
         <select id="emoji3MC">
+          <option value="❔|Forecast unavailable">❔ Forecast unavailable</option>
           <option value="☀️|Sunny">☀️ Sunny</option>
           <option value="🌤️|Mostly Sunny">🌤️ Mostly Sunny</option>
           <option value="⛅|Partly Cloudy">⛅ Partly Cloudy</option>
@@ -369,13 +408,15 @@
         <label for="candle2MC">Candle Lighting 2nd Night</label>
         <input type="text" id="candle2MC" value="">
       </div>
-      <div id="candle3MCWrap" class="hidden">
-        <label for="candle3MC">Candle Lighting 3rd Night</label>
-        <input type="text" id="candle3MC" value="">
-      </div>
       <div>
         <label for="motzeiMC" id="motzeiLabelMC">Motzei Shabbos</label>
         <input type="text" id="motzeiMC" value="">
+      </div>
+    </div>
+    <div class="row hidden" id="candle3MCWrap">
+      <div>
+        <label for="candle3MC">Candle Lighting 3rd Night</label>
+        <input type="text" id="candle3MC" value="">
       </div>
     </div>
   </div>
@@ -398,12 +439,6 @@
 
 <script>
   var APP_VERSION = "2.3";
-
-  // Tomche Shabbos Flatbush-style timing used by this generator:
-  // candle lighting = 15 minutes before sunset; Motzei = 72 minutes after sunset.
-  var CANDLE_MINUTES_BEFORE_SUNSET = 15;
-  var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
-  var SEARCH_DAYS_AHEAD = 45;
 
   var quotes = [
     "Common sense is like deodorant. The people who need it most never seem to use it.",
@@ -438,104 +473,68 @@
     "Every sunset brings the promise of a new dawn."
   ];
 
-  // Brooklyn 11219 and Monticello 12701.
+  var remoteQuotes = [];
+
+  // Location coordinates currently used by this generator.
   var LOCATIONS = {
-    BK: { lat: 40.6334, lon: -73.9968, zip: "11219" },
-    MC: { lat: 41.6560, lon: -74.6904, zip: "12701" }
+    BK: { lat: 40.6334, lon: -73.9968, zip: "11219", name: "Brooklyn" },
+    MC: { lat: 41.6560, lon: -74.6904, zip: "12701", name: "Monticello" }
   };
+
+  // Timing rules used for every event. No event dates are hard-coded.
+  var CANDLE_MINUTES_BEFORE_SUNSET = 22;
+  var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
+  var TZID = "America/New_York";
 
   var FLOWERS = ["🌼", "🌸", "🌺", "🌻", "🌷", "🌹", "🪷", "🌝"];
   var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Shabbos"];
-  var remoteQuotes = [];
 
-  window.__eventInfo = null;
-  window.__locationBlocks = {};
+  var YOM_TOV_EMOJIS = {
+    "ראש השנה": "🍎",
+    "יום כיפור": "🤍",
+    "סוכות": "🌿",
+    "שמיני עצרת": "📜",
+    "שמחת תורה": "🎉",
+    "פסח": "🍷",
+    "שבועות": "🌸"
+  };
 
-  function fetchQuotes() {
-    if (location.protocol === "file:") return Promise.resolve();
-    return fetch("https://quoteslate.vercel.app/api/quotes/random?count=50&maxLength=160")
-      .then(function(r) {
-        if (!r.ok) throw new Error("QuoteSlate status " + r.status);
-        return r.json();
-      })
-      .then(function(data) {
-        remoteQuotes = data
-          .map(function(q) { return { text: q.quote }; })
-          .filter(function(q) { return q.text && q.text.length > 10 && q.text.length < 180; });
-      })
-      .catch(function() {
-        return fetch("https://type.fit/api/quotes")
-          .then(function(r) {
-            if (!r.ok) throw new Error("type.fit status " + r.status);
-            return r.json();
-          })
-          .then(function(data) {
-            remoteQuotes = data.filter(function(q) {
-              return q && q.text && q.text.length > 10 && q.text.length < 180;
-            });
-          })
-          .catch(function() {
-            // Silently fall back to the local quote list.
-          });
-      });
-  }
-
-  function getRandomQuoteText(excludeText) {
-    var pool = remoteQuotes.length > 0 ? remoteQuotes : null;
-    if (pool) {
-      var attempts = 0;
-      var nextText = excludeText || "";
-      while (nextText === excludeText && attempts < 10) {
-        var q = pool[Math.floor(Math.random() * pool.length)];
-        nextText = (q.text || "").replace(/[\s-]+$/, "").trim();
-        attempts++;
-      }
-      return nextText;
-    }
-
-    var next = excludeText;
-    var tries = 0;
-    while (next === excludeText && tries < 10) {
-      next = quotes[Math.floor(Math.random() * quotes.length)];
-      tries++;
-    }
-    return next;
-  }
+  var calendarItemsBK = [];
+  var eventBlocks = [];
+  var currentEventIndex = -1;
+  var baseEventIndex = -1;
+  var currentEventInfo = null;
+  var currentMCBlock = null;
 
   function pad(n) { return n < 10 ? "0" + n : String(n); }
 
-  function formatYmd(d) {
-    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  function dateOnly(value) {
+    if (!value) return "";
+    var m = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : "";
   }
 
-  function getNYCalendarDate(offsetDays) {
-    var now = new Date();
+  function ymdFromUTCDate(d) {
+    return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+  }
+
+  function addDays(dateStr, amount) {
+    var p = dateStr.split("-").map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    d.setUTCDate(d.getUTCDate() + amount);
+    return ymdFromUTCDate(d);
+  }
+
+  function nyTodayStr() {
     var parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
+      timeZone: TZID,
       year: "numeric",
       month: "2-digit",
       day: "2-digit"
-    }).formatToParts(now);
-
-    var vals = {};
-    for (var i = 0; i < parts.length; i++) {
-      if (parts[i].type !== "literal") vals[parts[i].type] = parts[i].value;
-    }
-
-    // Noon avoids DST-boundary surprises while doing calendar-day math.
-    var d = new Date(parseInt(vals.year, 10), parseInt(vals.month, 10) - 1, parseInt(vals.day, 10) + (offsetDays || 0), 12, 0, 0);
-    return formatYmd(d);
-  }
-
-  function addDaysYmd(ymd, days) {
-    var p = ymd.split("-");
-    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10) + days, 12, 0, 0);
-    return formatYmd(d);
-  }
-
-  function dateFromIso(iso) {
-    var m = String(iso || "").match(/^(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : "";
+    }).formatToParts(new Date());
+    var out = {};
+    parts.forEach(function(p) { out[p.type] = p.value; });
+    return out.year + "-" + out.month + "-" + out.day;
   }
 
   function formatTimeFromIso(iso) {
@@ -548,22 +547,252 @@
     return h12 + ":" + pad(min);
   }
 
-  function dayNameFromYmd(ymd) {
-    if (!ymd) return "";
-    var p = ymd.split("-");
-    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0);
-    return DAY_NAMES[d.getDay()];
+  function dayNameFromDateStr(dateStr) {
+    if (!dateStr) return "";
+    var p = dateStr.split("-").map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return DAY_NAMES[d.getUTCDay()];
+  }
+
+  function formatEventDateRange(startDate, endDate) {
+    if (!startDate) return "";
+    var s = startDate.split("-").map(Number);
+    var e = (endDate || startDate).split("-").map(Number);
+    var sd = new Date(Date.UTC(s[0], s[1] - 1, s[2]));
+    var ed = new Date(Date.UTC(e[0], e[1] - 1, e[2]));
+    var sm = sd.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    var em = ed.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+    if (startDate === endDate) return sm + " " + s[2] + ", " + s[0];
+    if (s[0] === e[0] && s[1] === e[1]) return sm + " " + s[2] + "–" + e[2] + ", " + s[0];
+    if (s[0] === e[0]) return sm + " " + s[2] + "–" + em + " " + e[2] + ", " + s[0];
+    return sm + " " + s[2] + ", " + s[0] + "–" + em + " " + e[2] + ", " + e[0];
   }
 
   function setStatus(msg) {
     document.getElementById("status").textContent = msg;
   }
 
+  function setNavBusy(isBusy) {
+    document.getElementById("prevEventBtn").disabled = isBusy;
+    document.getElementById("nextEventBtn").disabled = isBusy;
+    document.getElementById("fetchBtn").disabled = isBusy;
+  }
+
+  function fetchQuotes() {
+    if (location.protocol === "file:") return Promise.resolve();
+    return fetch("https://quoteslate.vercel.app/api/quotes/random?count=50&maxLength=160")
+      .then(function(r) {
+        if (!r.ok) throw new Error("QuoteSlate status " + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        remoteQuotes = (Array.isArray(data) ? data : [])
+          .map(function(q) { return { text: q.quote || q.text || "" }; })
+          .filter(function(q) { return q.text && q.text.length > 10 && q.text.length < 180; });
+      })
+      .catch(function() {
+        // Keep the built-in quote list. The page always has a quote even if the API is unavailable.
+      });
+  }
+
+  function getRandomQuoteText(excludeText) {
+    var pool = remoteQuotes.length ? remoteQuotes.map(function(q) { return q.text; }) : quotes;
+    if (!pool.length) return "";
+    var next = pool[Math.floor(Math.random() * pool.length)];
+    var tries = 0;
+    while (next === excludeText && pool.length > 1 && tries < 12) {
+      next = pool[Math.floor(Math.random() * pool.length)];
+      tries++;
+    }
+    return String(next || "").replace(/[\s-]+$/, "").trim();
+  }
+
+  function ensureDefaultQuote() {
+    var el = document.getElementById("quote");
+    if (!el.value.trim()) el.value = getRandomQuoteText("");
+  }
+
+  function calendarUrl(loc, start, end) {
+    return "https://www.hebcal.com/hebcal?v=1&cfg=json" +
+      "&start=" + encodeURIComponent(start) +
+      "&end=" + encodeURIComponent(end) +
+      "&maj=on&min=on&nx=on&ss=on&mf=on&mvch=on&s=on&leyning=off" +
+      "&c=on" +
+      "&latitude=" + encodeURIComponent(loc.lat) +
+      "&longitude=" + encodeURIComponent(loc.lon) +
+      "&tzid=" + encodeURIComponent(TZID) +
+      "&b=" + CANDLE_MINUTES_BEFORE_SUNSET +
+      "&m=" + HAVDALAH_MINUTES_AFTER_SUNSET;
+  }
+
+  function fetchCalendar(loc, start, end) {
+    return fetch(calendarUrl(loc, start, end)).then(function(r) {
+      if (!r.ok) throw new Error("Hebcal returned status " + r.status);
+      return r.json();
+    });
+  }
+
+  function buildEventBlocks(items) {
+    var timed = (items || [])
+      .filter(function(it) { return it.category === "candles" || it.category === "havdalah"; })
+      .slice()
+      .sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+
+    var blocks = [];
+    var active = null;
+
+    timed.forEach(function(it) {
+      if (it.category === "candles") {
+        if (!active) {
+          active = { candles: [], havdalah: null };
+        }
+        active.candles.push(it);
+      } else if (it.category === "havdalah" && active && active.candles.length) {
+        active.havdalah = it;
+        active.startDate = dateOnly(active.candles[0].date);
+        active.endDate = dateOnly(it.date);
+        blocks.push(active);
+        active = null;
+      }
+    });
+
+    return blocks;
+  }
+
+  function itemInBlock(it, block) {
+    var d = dateOnly(it.date);
+    return d && d >= block.startDate && d <= block.endDate;
+  }
+
+  function normalizeHebrewHolidayName(name) {
+    return String(name || "")
+      .replace(/^ערב\s+/, "")
+      .replace(/\s+\d{4}\s*$/, "")
+      .replace(/\s+[אבגדהוזחט]\s*[׳״']?\s*$/, "")
+      .trim();
+  }
+
+  function normalizeEnglishHolidayName(name) {
+    return String(name || "")
+      .replace(/^Erev\s+/i, "")
+      .replace(/\s+\d{4}\s*$/, "")
+      .replace(/\s+(I|II|III|IV|V|VI|VII|VIII)\s*$/i, "")
+      .trim();
+  }
+
+  function specialShabbatText(hebrew) {
+    var heb = String(hebrew || "");
+    if (heb.indexOf("שבת נחמו") !== -1) return "נחמו";
+    if (heb.indexOf("שבת שובה") !== -1) return "שובה";
+    if (heb.indexOf("שבת שקלים") !== -1) return "שקלים";
+    if (heb.indexOf("שבת זכור") !== -1) return "זכור";
+    if (heb.indexOf("שבת פרה") !== -1) return "פרה";
+    if (heb.indexOf("שבת החודש") !== -1) return "החודש";
+    if (heb.indexOf("שבת הגדול") !== -1) return "הגדול";
+    if (heb.indexOf("שבת חזון") !== -1) return "חזון";
+    if (heb.indexOf("שבת ראש") !== -1) return "ראש חודש";
+    return "";
+  }
+
+  function analyzeEvent(block, items) {
+    var related = (items || []).filter(function(it) { return itemInBlock(it, block); });
+    var yomTovItems = related.filter(function(it) {
+      return it.category === "holiday" && it.yomtov === true && String(it.hebrew || "").indexOf("ערב") !== 0;
+    });
+    var isYomTov = yomTovItems.length > 0;
+
+    var yomTovName = "";
+    var englishTitle = "";
+    if (isYomTov) {
+      yomTovName = normalizeHebrewHolidayName(yomTovItems[0].hebrew || yomTovItems[0].title);
+      englishTitle = normalizeEnglishHolidayName(yomTovItems[0].title || "Yom Tov");
+    }
+
+    var parshaItem = related.find(function(it) { return it.category === "parashat"; });
+    var parsha = parshaItem ? String(parshaItem.hebrew || parshaItem.title || "").replace(/^פרשת\s+/, "") : "";
+    var parshaEnglish = parshaItem ? String(parshaItem.title || "").replace(/^Parashat\s+/i, "") : "";
+
+    var additional = "";
+    for (var i = 0; i < related.length && !additional; i++) {
+      if (related[i].category === "holiday") additional = specialShabbatText(related[i].hebrew);
+    }
+    if (!additional) {
+      var mev = related.find(function(it) { return it.category === "mevarchim"; });
+      if (mev) {
+        var monthMatch = String(mev.hebrew || "").match(/חודש\s+(.+)$/);
+        if (monthMatch) additional = "מבה״ח " + monthMatch[1];
+      }
+    }
+
+    var observanceDates = block.candles.map(function(c) { return addDays(dateOnly(c.date), 1); });
+
+    return {
+      block: block,
+      isYomTov: isYomTov,
+      yomTovName: yomTovName,
+      parsha: parsha,
+      additional: additional,
+      observanceDates: observanceDates,
+      titleEnglish: isYomTov ? (englishTitle || "Yom Tov") : (parshaEnglish ? "Shabbos: " + parshaEnglish : "Shabbos")
+    };
+  }
+
+  function getYomTovEmoji(name) {
+    if (!name) return "🌟";
+    for (var key in YOM_TOV_EMOJIS) {
+      if (name.indexOf(key) !== -1) return YOM_TOV_EMOJIS[key];
+    }
+    return "🌟";
+  }
+
+  function currentBlockIsStillActive(block) {
+    if (!block || !block.havdalah) return false;
+    var endMs = new Date(block.havdalah.date).getTime();
+    if (!isNaN(endMs)) return endMs >= Date.now();
+    return block.endDate >= nyTodayStr();
+  }
+
+  function findBaseEventIndex(blocks) {
+    for (var i = 0; i < blocks.length; i++) {
+      if (currentBlockIsStillActive(blocks[i])) return i;
+    }
+    return blocks.length ? blocks.length - 1 : -1;
+  }
+
+  function clearEventFields(prefix) {
+    ["high", "low", "high2", "low2", "high3", "low3", "candle", "candle2", "candle3", "motzei"].forEach(function(base) {
+      var el = document.getElementById(base + prefix);
+      if (el) el.value = "";
+    });
+    ["emoji", "emoji2", "emoji3"].forEach(function(base) {
+      var el = document.getElementById(base + prefix);
+      if (el) el.value = "❔|Forecast unavailable";
+    });
+  }
+
+  function applyLocationTimes(block, prefix, isYomTov) {
+    var candles = block && block.candles ? block.candles : [];
+    for (var i = 0; i < 3; i++) {
+      var n = i + 1;
+      var suffix = n === 1 ? "" : String(n);
+      var el = document.getElementById("candle" + suffix + prefix);
+      var wrap = n === 1 ? null : document.getElementById("candle" + suffix + prefix + "Wrap");
+      if (el) el.value = candles[i] ? formatTimeFromIso(candles[i].date) : "";
+      if (wrap) {
+        if (candles[i]) wrap.classList.remove("hidden");
+        else wrap.classList.add("hidden");
+      }
+    }
+
+    var motzei = document.getElementById("motzei" + prefix);
+    if (motzei) motzei.value = block && block.havdalah ? formatTimeFromIso(block.havdalah.date) : "";
+    var label = document.getElementById("motzeiLabel" + prefix);
+    if (label) label.textContent = (isYomTov || candles.length > 1) ? "Motzei Yom Tov" : "Motzei Shabbos";
+  }
+
   function weatherEmoji(code) {
-    code = Number(code);
     if (code === 0) return "☀️|Sunny";
-    if (code === 1) return "🌤️|Mostly Sunny";
-    if (code === 2) return "⛅|Partly Cloudy";
+    if (code === 1 || code === 2) return "🌤️|Mostly Sunny";
     if (code === 3) return "☁️|Cloudy";
     if (code >= 45 && code <= 48) return "🌫️|Foggy";
     if (code >= 51 && code <= 67) return "🌧️|Rainy";
@@ -574,449 +803,240 @@
     return "🌤️|Mostly Sunny";
   }
 
-  function fetchCalendar(lat, lon) {
-    var start = getNYCalendarDate(-3);
-    var end = addDaysYmd(getNYCalendarDate(0), SEARCH_DAYS_AHEAD);
-    var url = "https://www.hebcal.com/hebcal?v=1&cfg=json" +
-      "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) +
-      "&maj=on&ss=on&mvch=on&s=on&leyning=off" +
-      "&c=on&i=off&geo=pos" +
-      "&latitude=" + encodeURIComponent(lat) + "&longitude=" + encodeURIComponent(lon) +
-      "&tzid=America%2FNew_York" +
-      "&b=" + CANDLE_MINUTES_BEFORE_SUNSET +
-      "&m=" + HAVDALAH_MINUTES_AFTER_SUNSET +
-      "&lg=he-x-NoNikud";
-
-    return fetch(url).then(function(r) {
-      if (!r.ok) throw new Error("Hebcal returned status " + r.status);
-      return r.json();
-    });
-  }
-
-  function buildObservanceBlocks(items) {
-    var timed = (items || []).filter(function(it) {
-      return it.category === "candles" || it.category === "havdalah";
-    }).slice().sort(function(a, b) {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
-
-    var blocks = [];
-    var current = null;
-
-    for (var i = 0; i < timed.length; i++) {
-      var it = timed[i];
-      if (it.category === "candles") {
-        if (!current) current = { candles: [], havdalah: null };
-        current.candles.push(it);
-      } else if (it.category === "havdalah" && current) {
-        current.havdalah = it;
-        blocks.push(current);
-        current = null;
-      }
-    }
-
-    if (current && current.candles.length) blocks.push(current);
-    return blocks;
-  }
-
-  function selectNextOrCurrentBlock(items, preferredStartDate) {
-    var blocks = buildObservanceBlocks(items);
-    var now = Date.now();
-
-    if (preferredStartDate) {
-      for (var p = 0; p < blocks.length; p++) {
-        if (dateFromIso(blocks[p].candles[0].date) === preferredStartDate) return blocks[p];
-      }
-    }
-
-    for (var i = 0; i < blocks.length; i++) {
-      var block = blocks[i];
-      var endMs;
-      if (block.havdalah && block.havdalah.date) {
-        endMs = new Date(block.havdalah.date).getTime();
-      } else {
-        endMs = new Date(block.candles[block.candles.length - 1].date).getTime() + 36 * 60 * 60 * 1000;
-      }
-      if (endMs >= now) return block;
-    }
-
-    return null;
-  }
-
-  function observanceDatesFromBlock(block) {
-    if (!block || !block.candles) return [];
-    var out = [];
-    for (var i = 0; i < block.candles.length; i++) {
-      var candleDate = dateFromIso(block.candles[i].date);
-      if (!candleDate) continue;
-      var day = addDaysYmd(candleDate, 1);
-      if (out.indexOf(day) === -1) out.push(day);
-    }
-    return out;
-  }
-
-  function normalizeYomTovName(name) {
-    return String(name || "")
-      .replace(/^ערב\s+/, "")
-      .replace(/\s+\d+$/, "")
-      .replace(/\s+[א-ת][׳״]?\s*$/, "")
-      .trim();
-  }
-
-  function specialShabbatName(heb) {
-    heb = String(heb || "");
-    var map = [
-      ["שבת נחמו", "נחמו"],
-      ["שבת שובה", "שובה"],
-      ["שבת שקלים", "שקלים"],
-      ["שבת זכור", "זכור"],
-      ["שבת פרה", "פרה"],
-      ["שבת החודש", "החודש"],
-      ["שבת הגדול", "הגדול"],
-      ["שבת חזון", "חזון"],
-      ["שבת ראש חודש", "ראש חודש"]
-    ];
-    for (var i = 0; i < map.length; i++) {
-      if (heb.indexOf(map[i][0]) !== -1) return map[i][1];
-    }
-    return "";
-  }
-
-  function analyzeBlock(items, block) {
-    var days = observanceDatesFromBlock(block);
-    var firstDay = days[0] || addDaysYmd(dateFromIso(block.candles[0].date), 1);
-    var finalDate = block.havdalah ? dateFromIso(block.havdalah.date) : (days[days.length - 1] || firstDay);
-
-    var relevant = (items || []).filter(function(it) {
-      var d = dateFromIso(it.date);
-      return d && d >= firstDay && d <= finalDate;
-    });
-
-    var yomTovNames = [];
-    var parsha = "";
-    var additional = "";
-    var finalDayIsYomTov = false;
-
-    for (var i = 0; i < relevant.length; i++) {
-      var it = relevant[i];
-      if (it.category === "holiday" && it.yomtov) {
-        var name = normalizeYomTovName(it.hebrew || it.title || "");
-        if (name && yomTovNames.indexOf(name) === -1) yomTovNames.push(name);
-        if (dateFromIso(it.date) === finalDate) finalDayIsYomTov = true;
-      }
-      if (!parsha && it.category === "parashat") {
-        parsha = it.hebrew || String(it.title || "").replace(/^Parashat\s+/, "");
-      }
-    }
-
-    var isYomTov = yomTovNames.length > 0;
-
-    if (!isYomTov) {
-      for (var j = 0; j < relevant.length; j++) {
-        var rit = relevant[j];
-        if (!additional && rit.category === "mevarchim") {
-          var mh = rit.hebrew || "";
-          var mm = mh.match(/חודש\s+(.+)$/);
-          if (mm && mm[1]) additional = "מבה״ח " + mm[1].trim();
-        }
-        if (rit.category === "holiday") {
-          var special = specialShabbatName(rit.hebrew || "");
-          if (special) additional = special;
-        }
-      }
-    }
-
-    var title = isYomTov ? yomTovNames.join(" / ") : parsha;
-    var endLabel;
-    if (finalDayIsYomTov) {
-      endLabel = "Motzei Yom Tov";
-    } else if (dayNameFromYmd(finalDate) === "Shabbos") {
-      endLabel = "Motzei Shabbos";
-    } else {
-      endLabel = isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos";
-    }
-
-    return {
-      isYomTov: isYomTov,
-      title: title,
-      parsha: parsha,
-      yomTovName: isYomTov ? yomTovNames.join(" / ") : "",
-      additional: additional,
-      observanceDates: days,
-      firstCandleDate: dateFromIso(block.candles[0].date),
-      finalDate: finalDate,
-      endLabel: endLabel,
-      candleCount: block.candles.length
-    };
-  }
-
-  function resetLocationFields(prefix) {
-    var ids = [
-      "high" + prefix, "low" + prefix,
-      "high2" + prefix, "low2" + prefix,
-      "high3" + prefix, "low3" + prefix,
-      "candle" + prefix, "candle2" + prefix, "candle3" + prefix,
-      "motzei" + prefix
-    ];
-    for (var i = 0; i < ids.length; i++) {
-      var el = document.getElementById(ids[i]);
-      if (el) el.value = "";
-    }
-
-    ["candle2" + prefix + "Wrap", "candle3" + prefix + "Wrap"].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.classList.add("hidden");
-    });
-
-    ["weather2" + prefix + "Wrap", "weather3" + prefix + "Wrap"].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.style.display = "none";
-    });
-  }
-
-  function applyCalendar(data, prefix, preferredStartDate) {
-    var items = data.items || [];
-    var block = selectNextOrCurrentBlock(items, preferredStartDate);
-    if (!block) throw new Error("No upcoming Shabbos or Yom Tov candle-lighting event was found.");
-
-    resetLocationFields(prefix);
-    window.__locationBlocks[prefix] = block;
-
-    for (var i = 0; i < Math.min(block.candles.length, 3); i++) {
-      var suffix = i === 0 ? "" : String(i + 1);
-      var candleEl = document.getElementById("candle" + suffix + prefix);
-      if (candleEl) candleEl.value = formatTimeFromIso(block.candles[i].date);
-      if (i > 0) {
-        var wrap = document.getElementById("candle" + suffix + prefix + "Wrap");
-        if (wrap) wrap.classList.remove("hidden");
-      }
-    }
-
-    if (block.havdalah) {
-      document.getElementById("motzei" + prefix).value = formatTimeFromIso(block.havdalah.date);
-    }
-
-    if (prefix === "BK") {
-      var info = analyzeBlock(items, block);
-      window.__eventInfo = info;
-      window.__isYomTov = info.isYomTov;
-      window.__yomTovName = info.yomTovName;
-      window.__candleDates = block.candles.map(function(c) { return c.date; });
-
-      document.getElementById("parsha").value = info.title || "";
-      document.getElementById("parshaFieldLabel").textContent = info.isYomTov ? "Yom Tov (Hebrew)" : "Parsha (Hebrew)";
-
-      var additionalEl = document.getElementById("additionalText");
-      var includeEl = document.getElementById("includeAdditional");
-      if (info.additional) {
-        additionalEl.value = info.additional;
-        additionalEl.disabled = false;
-        includeEl.checked = true;
-      } else {
-        additionalEl.value = "";
-        additionalEl.disabled = true;
-        includeEl.checked = false;
-      }
-    }
-
-    var motzeiLabel = document.getElementById("motzeiLabel" + prefix);
-    if (motzeiLabel) {
-      if (prefix === "BK" && window.__eventInfo) {
-        motzeiLabel.textContent = window.__eventInfo.endLabel;
-      } else if (window.__eventInfo) {
-        motzeiLabel.textContent = window.__eventInfo.endLabel;
-      }
-    }
-
-    return block;
-  }
-
   function fetchWeather(lat, lon) {
-    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + encodeURIComponent(lat) +
-      "&longitude=" + encodeURIComponent(lon) +
-      "&daily=apparent_temperature_max,apparent_temperature_min,weather_code" +
-      "&past_days=3&forecast_days=14&temperature_unit=fahrenheit&timezone=America%2FNew_York";
-
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&daily=apparent_temperature_max,apparent_temperature_min,weathercode&forecast_days=16&temperature_unit=fahrenheit&timezone=" + encodeURIComponent(TZID);
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Weather returned status " + r.status);
       return r.json();
     });
   }
 
-  function setWeatherDay(prefix, dayNumber, daily, idx) {
+  function setWeatherRow(prefix, dayNumber, high, low, emojiValue, show) {
     var suffix = dayNumber === 1 ? "" : String(dayNumber);
-    var hi = daily.apparent_temperature_max && daily.apparent_temperature_max[idx];
-    var lo = daily.apparent_temperature_min && daily.apparent_temperature_min[idx];
-    var wc = daily.weather_code && daily.weather_code[idx];
-
-    if (hi != null) document.getElementById("high" + suffix + prefix).value = Math.round(hi);
-    if (lo != null) document.getElementById("low" + suffix + prefix).value = Math.round(lo);
-    if (wc != null) document.getElementById("emoji" + suffix + prefix).value = weatherEmoji(wc);
+    var highEl = document.getElementById("high" + suffix + prefix);
+    var lowEl = document.getElementById("low" + suffix + prefix);
+    var emojiEl = document.getElementById("emoji" + suffix + prefix);
+    var wrap = dayNumber === 1 ? null : document.getElementById("weather" + dayNumber + prefix + "Wrap");
+    if (highEl) highEl.value = high == null ? "" : high;
+    if (lowEl) lowEl.value = low == null ? "" : low;
+    if (emojiEl) emojiEl.value = emojiValue || "❔|Forecast unavailable";
+    if (wrap) wrap.style.display = show ? "" : "none";
   }
 
-  function applyWeather(wdata, prefix, block) {
-    var daily = wdata.daily || {};
-    var times = daily.time || [];
-    var dates = observanceDatesFromBlock(block).slice(0, 3);
-
-    for (var i = 0; i < dates.length; i++) {
-      var idx = times.indexOf(dates[i]);
-      if (idx !== -1) setWeatherDay(prefix, i + 1, daily, idx);
+  function applyWeather(wdata, prefix, eventInfo) {
+    var daily = wdata && wdata.daily;
+    var dates = eventInfo.observanceDates || [];
+    if (!daily || !Array.isArray(daily.time)) {
+      for (var x = 1; x <= 3; x++) setWeatherRow(prefix, x, null, null, "❔|Forecast unavailable", x <= dates.length);
+      return false;
     }
 
-    var day2Wrap = document.getElementById("weather2" + prefix + "Wrap");
-    var day3Wrap = document.getElementById("weather3" + prefix + "Wrap");
-    if (day2Wrap) day2Wrap.style.display = dates.length >= 2 ? "" : "none";
-    if (day3Wrap) day3Wrap.style.display = dates.length >= 3 ? "" : "none";
+    var anyAvailable = false;
+    for (var i = 0; i < 3; i++) {
+      var show = i < dates.length;
+      if (!show) {
+        setWeatherRow(prefix, i + 1, null, null, "❔|Forecast unavailable", false);
+        continue;
+      }
+      var idx = daily.time.indexOf(dates[i]);
+      if (idx === -1) {
+        setWeatherRow(prefix, i + 1, null, null, "❔|Forecast unavailable", true);
+      } else {
+        var high = daily.apparent_temperature_max && daily.apparent_temperature_max[idx] != null ? Math.round(daily.apparent_temperature_max[idx]) : null;
+        var low = daily.apparent_temperature_min && daily.apparent_temperature_min[idx] != null ? Math.round(daily.apparent_temperature_min[idx]) : null;
+        var code = daily.weathercode && daily.weathercode[idx] != null ? daily.weathercode[idx] : null;
+        setWeatherRow(prefix, i + 1, high, low, code == null ? "❔|Forecast unavailable" : weatherEmoji(code), true);
+        anyAvailable = true;
+      }
+    }
+    return anyAvailable;
   }
 
-  function fetchLocation(prefix, zip, lat, lon, preferredStartDate) {
-    return fetchCalendar(lat, lon)
+  function updateEventHeader(eventInfo) {
+    var block = eventInfo.block;
+    var range = formatEventDateRange(block.startDate, block.endDate);
+    var label = eventInfo.titleEnglish + (range ? " • " + range : "");
+    document.getElementById("currentEventLabel").textContent = label;
+
+    var parshaEl = document.getElementById("parsha");
+    parshaEl.value = eventInfo.isYomTov ? eventInfo.yomTovName : eventInfo.parsha;
+
+    var addEl = document.getElementById("additionalText");
+    var include = document.getElementById("includeAdditional");
+    if (!eventInfo.isYomTov && eventInfo.additional) {
+      addEl.value = eventInfo.additional;
+      addEl.disabled = false;
+      include.checked = true;
+    } else {
+      addEl.value = "";
+      addEl.disabled = true;
+      include.checked = false;
+    }
+
+    window.__isYomTov = eventInfo.isYomTov;
+    window.__yomTovName = eventInfo.yomTovName;
+    window.__candleDates = block.candles.map(function(c) { return c.date; });
+    window.__observanceDates = eventInfo.observanceDates.slice();
+  }
+
+  function findMatchingBlockForLocation(items, selectedBlock) {
+    var blocks = buildEventBlocks(items);
+    var exact = blocks.find(function(b) { return b.startDate === selectedBlock.startDate && b.endDate === selectedBlock.endDate; });
+    if (exact) return exact;
+    return blocks.find(function(b) { return b.startDate === selectedBlock.startDate; }) || null;
+  }
+
+  function loadMonticelloForCurrent() {
+    if (!currentEventInfo || !document.getElementById("addMonticello").checked) return Promise.resolve();
+    var block = currentEventInfo.block;
+    var start = addDays(block.startDate, -1);
+    var end = addDays(block.endDate, 1);
+    clearEventFields("MC");
+
+    return fetchCalendar(LOCATIONS.MC, start, end)
       .then(function(data) {
-        var block = applyCalendar(data, prefix, preferredStartDate);
-        return fetchWeather(lat, lon)
-          .then(function(wdata) {
-            applyWeather(wdata, prefix, block);
-            return { ok: true, block: block, warnings: [] };
-          })
-          .catch(function(err) {
-            return { ok: true, block: block, warnings: ["Weather failed for " + prefix + ": " + err.message] };
-          });
+        currentMCBlock = findMatchingBlockForLocation(data.items || [], block);
+        if (!currentMCBlock) throw new Error("matching Monticello event was not found");
+        applyLocationTimes(currentMCBlock, "MC", currentEventInfo.isYomTov);
+        return fetchWeather(LOCATIONS.MC.lat, LOCATIONS.MC.lon);
       })
-      .catch(function(err) {
-        return { ok: false, error: err.message, warnings: [] };
+      .then(function(wdata) {
+        applyWeather(wdata, "MC", currentEventInfo);
       });
   }
 
-  function formatShortDate(ymd) {
-    if (!ymd) return "";
-    var p = ymd.split("-");
-    var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  function updateNavButtons() {
+    document.getElementById("prevEventBtn").disabled = currentEventIndex <= 0;
+    document.getElementById("nextEventBtn").disabled = currentEventIndex < 0 || currentEventIndex >= eventBlocks.length - 1;
   }
 
-  function loadedStatus(extraWarnings) {
-    var info = window.__eventInfo;
-    if (!info) return "Done. Review anything that looks off.";
+  function loadSelectedEvent() {
+    if (currentEventIndex < 0 || currentEventIndex >= eventBlocks.length) return Promise.resolve();
 
-    var range = formatShortDate(info.firstCandleDate);
-    if (info.finalDate && info.finalDate !== info.firstCandleDate) range += " - " + formatShortDate(info.finalDate);
+    setNavBusy(true);
+    var block = eventBlocks[currentEventIndex];
+    currentEventInfo = analyzeEvent(block, calendarItemsBK);
+    currentMCBlock = null;
 
-    var msg = "Loaded " + (info.title || "next event") + " • " + range +
-      " • Zmanim: " + CANDLE_MINUTES_BEFORE_SUNSET + " min before sunset / " + HAVDALAH_MINUTES_AFTER_SUNSET + " min after sunset";
+    clearEventFields("BK");
+    updateEventHeader(currentEventInfo);
+    applyLocationTimes(block, "BK", currentEventInfo.isYomTov);
+    updatePreview();
 
-    if (extraWarnings && extraWarnings.length) msg += " • ⚠️ " + extraWarnings.join("; ");
-    return msg;
+    var weatherHadData = false;
+    var bkWeatherPromise = fetchWeather(LOCATIONS.BK.lat, LOCATIONS.BK.lon)
+      .then(function(wdata) {
+        weatherHadData = applyWeather(wdata, "BK", currentEventInfo);
+      })
+      .catch(function() {
+        applyWeather(null, "BK", currentEventInfo);
+      });
+
+    var mcPromise = Promise.resolve();
+    if (document.getElementById("addMonticello").checked) {
+      mcPromise = loadMonticelloForCurrent().catch(function(err) {
+        setStatus("⚠️ Monticello fetch failed: " + err.message + ".");
+      });
+    }
+
+    return Promise.all([bkWeatherPromise, mcPromise]).then(function() {
+      updatePreview();
+      var offset = currentEventIndex - baseEventIndex;
+      var where = offset === 0 ? "next/current event" : (offset > 0 ? offset + " event" + (offset === 1 ? "" : "s") + " ahead" : Math.abs(offset) + " event" + (offset === -1 ? "" : "s") + " back");
+      var weatherNote = weatherHadData ? "" : " Weather is unavailable this far ahead, but the event and zmanim are loaded.";
+      setStatus("Loaded " + where + "." + weatherNote);
+      setNavBusy(false);
+      updateNavButtons();
+    }).catch(function(err) {
+      setStatus("⚠️ Could not load selected event: " + err.message);
+      setNavBusy(false);
+      updateNavButtons();
+    });
   }
 
   function fetchAll() {
     if (location.protocol === "file:") {
-      setStatus("⚠️ This file is open as a local file (file://). Most browsers block live API requests from local files. Host index.html online for auto-fetch to work. Manual entry still works.");
+      setStatus("⚠️ This file is open as file://. Host it online (for example on GitHub Pages) so the live Hebcal, weather and quote requests can run.");
       return;
     }
 
-    setStatus("Finding the next Shabbos or Yom Tov...");
-    window.__eventInfo = null;
-    window.__locationBlocks = {};
+    ensureDefaultQuote();
+    updatePreview();
+    setNavBusy(true);
+    document.getElementById("currentEventLabel").textContent = "Finding next event…";
+    setStatus("Finding the next Shabbos or Yom Tov event...");
 
-    fetchLocation("BK", LOCATIONS.BK.zip, LOCATIONS.BK.lat, LOCATIONS.BK.lon, null)
-      .then(function(bkResult) {
-        if (!bkResult.ok) {
-          setStatus("⚠️ Brooklyn fetch failed: " + bkResult.error + ". Fill in manually.");
-          updatePreview();
-          return null;
-        }
+    var today = nyTodayStr();
+    var start = addDays(today, -180);
+    var end = addDays(today, 550);
 
-        var warnings = bkResult.warnings.slice();
-        updatePreview();
-
-        if (!document.getElementById("addMonticello").checked) {
-          setStatus(loadedStatus(warnings));
-          return null;
-        }
-
-        setStatus("Brooklyn loaded. Fetching Monticello for the same event...");
-        var preferred = window.__eventInfo ? window.__eventInfo.firstCandleDate : null;
-        return fetchLocation("MC", LOCATIONS.MC.zip, LOCATIONS.MC.lat, LOCATIONS.MC.lon, preferred)
-          .then(function(mcResult) {
-            if (!mcResult.ok) {
-              warnings.push("Monticello failed: " + mcResult.error);
-            } else {
-              warnings = warnings.concat(mcResult.warnings);
-            }
-            updatePreview();
-            setStatus(loadedStatus(warnings));
-          });
+    fetchCalendar(LOCATIONS.BK, start, end)
+      .then(function(data) {
+        calendarItemsBK = data.items || [];
+        eventBlocks = buildEventBlocks(calendarItemsBK);
+        baseEventIndex = findBaseEventIndex(eventBlocks);
+        currentEventIndex = baseEventIndex;
+        if (currentEventIndex < 0) throw new Error("No upcoming candle-lighting event was found in the calendar range.");
+        return loadSelectedEvent();
+      })
+      .catch(function(err) {
+        setStatus("⚠️ Event fetch failed: " + err.message + ".");
+        document.getElementById("currentEventLabel").textContent = "Could not load event";
+        setNavBusy(false);
+        updateNavButtons();
       });
+  }
+
+  function navigateEvent(delta) {
+    var target = currentEventIndex + delta;
+    if (target < 0 || target >= eventBlocks.length) return;
+    currentEventIndex = target;
+    loadSelectedEvent();
   }
 
   function escapeHtml(s) {
     return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  var YOM_TOV_EMOJIS = {
-    "ראש השנה": "🍎",
-    "יום כיפור": "🤍",
-    "סוכות": "🌿",
-    "שמיני עצרת": "📜",
-    "שמחת תורה": "🎉",
-    "פסח": "🍷",
-    "שבועות": "🌸"
-  };
-
-  function getYomTovEmoji(name) {
-    if (!name) return "🌟";
-    for (var key in YOM_TOV_EMOJIS) {
-      if (name.indexOf(key) !== -1) return YOM_TOV_EMOJIS[key];
-    }
-    return "🌟";
-  }
-
-  function weatherLine(prefix, dayNumber, locationName, dayName, showDayName) {
-    var suffix = dayNumber === 1 ? "" : String(dayNumber);
-    var high = document.getElementById("high" + suffix + prefix).value || "__";
-    var low = document.getElementById("low" + suffix + prefix).value || "__";
-    var emojiVal = document.getElementById("emoji" + suffix + prefix).value || "🌤️|Mostly Sunny";
-    var parts = emojiVal.split("|");
-    var emoji = parts[0];
-    var condition = parts[1] || "";
-    var dayPart = showDayName && dayName ? " - " + dayName : "";
-
-    return "\n" + emoji + " *Weather (" + locationName + dayPart + "):*\n" +
-      condition + "; Feel: High " + high + "°  Low " + low + "°\n";
-  }
-
   function updatePreview() {
-    var info = window.__eventInfo || {
-      isYomTov: false,
-      yomTovName: "",
-      observanceDates: [],
-      endLabel: "Motzei Shabbos",
-      candleCount: 1
-    };
-
     var parsha = document.getElementById("parsha").value || "____";
     var additionalText = document.getElementById("additionalText").value;
-    var addMonticello = document.getElementById("addMonticello").checked;
-    var quote = document.getElementById("quote").value || "____";
+    var isYomTov = window.__isYomTov || false;
+    var yomTovName = window.__yomTovName || "";
+    var observanceDates = window.__observanceDates || [];
+    var dayCount = currentEventInfo ? Math.min(currentEventInfo.block.candles.length, 3) : 1;
 
-    var parshaLine = parsha;
-    if (document.getElementById("includeAdditional").checked && additionalText) {
-      parshaLine += " - " + additionalText;
+    var addMonticello = document.getElementById("addMonticello").checked;
+
+    function weatherLineData(prefix, n) {
+      var suffix = n === 1 ? "" : String(n);
+      var high = document.getElementById("high" + suffix + prefix).value || "__";
+      var low = document.getElementById("low" + suffix + prefix).value || "__";
+      var ev = document.getElementById("emoji" + suffix + prefix).value || "❔|Forecast unavailable";
+      var p = ev.split("|");
+      return { high: high, low: low, emoji: p[0], condition: p[1] || "" };
     }
 
-    var headerText = info.isYomTov ? "A Git Yom Tov" : "A Git Shabbos";
-    var headerEmoji = info.isYomTov ? getYomTovEmoji(info.yomTovName) : (window.__flower || "🌼");
-    var parshaLabel = info.isYomTov ? "Yom Tov" : "Parsha";
+    var candleBK = document.getElementById("candleBK").value || "__:__";
+    var candle2BK = document.getElementById("candle2BK").value;
+    var candle3BK = document.getElementById("candle3BK").value;
+    var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
+    var motzeiLabelBK = (isYomTov || dayCount > 1) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
-    var dates = info.observanceDates || [];
-    var dayCount = Math.max(1, Math.min(3, dates.length || info.candleCount || 1));
-    var showDayName = info.isYomTov || dayCount > 1;
+    var candleMC = document.getElementById("candleMC").value || "__:__";
+    var candle2MC = document.getElementById("candle2MC").value;
+    var candle3MC = document.getElementById("candle3MC").value;
+    var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
+    var motzeiLabelMC = (isYomTov || dayCount > 1) ? "Motzei Yom Tov" : "Motzei Shabbos";
 
-    document.getElementById("weather2BKWrap").style.display = dayCount >= 2 ? "" : "none";
-    document.getElementById("weather3BKWrap").style.display = dayCount >= 3 ? "" : "none";
-    document.getElementById("weather2MCWrap").style.display = (addMonticello && dayCount >= 2) ? "" : "none";
-    document.getElementById("weather3MCWrap").style.display = (addMonticello && dayCount >= 3) ? "" : "none";
+    var quote = document.getElementById("quote").value || "____";
+    var parshaLine = parsha;
+    if (document.getElementById("includeAdditional").checked && additionalText) parshaLine += " - " + additionalText;
+
+    var headerText = isYomTov ? "A Git Yom Tov" : "A Git Shabbos";
+    var headerEmoji = isYomTov ? getYomTovEmoji(yomTovName) : (window.__flower || "🌼");
+    var parshaLabel = isYomTov ? "Yom Tov" : "Parsha";
 
     var raw =
       "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
@@ -1024,38 +1044,31 @@
       "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
       "📜 *" + parshaLabel + ": " + parshaLine + "*\n";
 
-    for (var d = 1; d <= dayCount; d++) {
-      raw += weatherLine("BK", d, "Brooklyn", dayNameFromYmd(dates[d - 1] || ""), showDayName);
-    }
-
-    if (addMonticello) {
-      for (var md = 1; md <= dayCount; md++) {
-        raw += weatherLine("MC", md, "Monticello", dayNameFromYmd(dates[md - 1] || ""), showDayName);
+    function appendWeather(prefix, locationName) {
+      for (var i = 1; i <= dayCount; i++) {
+        var wd = weatherLineData(prefix, i);
+        var dayName = observanceDates[i - 1] ? dayNameFromDateStr(observanceDates[i - 1]) : "";
+        var dayPart = dayCount > 1 && dayName ? " - " + dayName : "";
+        raw += "\n" + wd.emoji + " *Weather (" + locationName + dayPart + "):*\n" +
+          wd.condition + "; Feel: High " + wd.high + "°  Low " + wd.low + "°\n";
       }
     }
 
-    var candleBK = document.getElementById("candleBK").value || "__:__";
-    var candle2BK = document.getElementById("candle2BK").value;
-    var candle3BK = document.getElementById("candle3BK").value;
-    var motzeiBK = document.getElementById("motzeiBK").value || "__:__";
+    appendWeather("BK", "Brooklyn");
+    if (addMonticello) appendWeather("MC", "Monticello");
 
     raw += "\n🕰 *Zmanim (Brooklyn):*\n" +
       "• Candle lighting: " + candleBK + "  \n";
     if (dayCount >= 2 && candle2BK) raw += "• Candle lighting 2nd night: " + candle2BK + "  \n";
     if (dayCount >= 3 && candle3BK) raw += "• Candle lighting 3rd night: " + candle3BK + "  \n";
-    raw += "• " + (info.endLabel || "Motzei Shabbos") + ": " + motzeiBK + "  \n";
+    raw += "• " + motzeiLabelBK + ": " + motzeiBK + "  \n";
 
     if (addMonticello) {
-      var candleMC = document.getElementById("candleMC").value || "__:__";
-      var candle2MC = document.getElementById("candle2MC").value;
-      var candle3MC = document.getElementById("candle3MC").value;
-      var motzeiMC = document.getElementById("motzeiMC").value || "__:__";
-
       raw += "\n🕰 *Zmanim (Monticello):*\n" +
         "• Candle lighting: " + candleMC + "  \n";
       if (dayCount >= 2 && candle2MC) raw += "• Candle lighting 2nd night: " + candle2MC + "  \n";
       if (dayCount >= 3 && candle3MC) raw += "• Candle lighting 3rd night: " + candle3MC + "  \n";
-      raw += "• " + (info.endLabel || "Motzei Shabbos") + ": " + motzeiMC + "  \n";
+      raw += "• " + motzeiLabelMC + ": " + motzeiMC + "  \n";
     }
 
     raw += "\n💬 *Quote:*\n> " + quote;
@@ -1077,9 +1090,7 @@
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(showCopied, function() {
-        fallbackCopy(text, showCopied);
-      });
+      navigator.clipboard.writeText(text).then(showCopied, function() { fallbackCopy(text, showCopied); });
     } else {
       fallbackCopy(text, showCopied);
     }
@@ -1105,27 +1116,31 @@
 
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " • v" + APP_VERSION;
-    document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
+    window.__isYomTov = false;
+    window.__yomTovName = "";
+    window.__observanceDates = [];
 
-    fetchQuotes().then(function() {
-      document.getElementById("quote").value = getRandomQuoteText();
-      updatePreview();
-    });
+    document.getElementById("versionTop").textContent = "v" + APP_VERSION;
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " · v" + APP_VERSION;
+
+    // Populate a quote immediately. Remote quotes load in the background for future shuffles.
+    ensureDefaultQuote();
+    fetchQuotes();
 
     var textFields = [
       "parsha", "additionalText",
       "highBK", "lowBK", "high2BK", "low2BK", "high3BK", "low3BK",
       "highMC", "lowMC", "high2MC", "low2MC", "high3MC", "low3MC",
       "candleBK", "candle2BK", "candle3BK", "motzeiBK",
-      "candleMC", "candle2MC", "candle3MC", "motzeiMC",
-      "quote", "emojiBK", "emoji2BK", "emoji3BK", "emojiMC", "emoji2MC", "emoji3MC"
+      "candleMC", "candle2MC", "candle3MC", "motzeiMC", "quote",
+      "emojiBK", "emoji2BK", "emoji3BK", "emojiMC", "emoji2MC", "emoji3MC"
     ];
-
-    for (var i = 0; i < textFields.length; i++) {
-      document.getElementById(textFields[i]).addEventListener("input", updatePreview);
-      document.getElementById(textFields[i]).addEventListener("change", updatePreview);
-    }
+    textFields.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", updatePreview);
+      el.addEventListener("change", updatePreview);
+    });
 
     document.getElementById("includeAdditional").addEventListener("change", function() {
       document.getElementById("additionalText").disabled = !this.checked;
@@ -1136,36 +1151,35 @@
       var section = document.getElementById("monticelloSection");
       if (this.checked) {
         section.classList.remove("hidden");
+        updatePreview();
+        if (location.protocol !== "file:" && currentEventInfo) {
+          setStatus("Fetching Monticello for the selected event...");
+          loadMonticelloForCurrent()
+            .then(function() {
+              setStatus("Monticello loaded for the selected event.");
+              updatePreview();
+            })
+            .catch(function(err) {
+              setStatus("⚠️ Monticello fetch failed: " + err.message + ".");
+              updatePreview();
+            });
+        }
       } else {
         section.classList.add("hidden");
-      }
-      updatePreview();
-
-      if (this.checked && location.protocol !== "file:") {
-        var hasData = document.getElementById("candleMC").value;
-        if (!hasData) {
-          setStatus("Fetching Monticello for the same event...");
-          var preferred = window.__eventInfo ? window.__eventInfo.firstCandleDate : null;
-          fetchLocation("MC", LOCATIONS.MC.zip, LOCATIONS.MC.lat, LOCATIONS.MC.lon, preferred).then(function(result) {
-            if (!result.ok) {
-              setStatus("⚠️ Monticello fetch failed: " + result.error + ". Fill it in manually.");
-            } else {
-              updatePreview();
-              setStatus(loadedStatus(result.warnings));
-            }
-          });
-        }
+        updatePreview();
       }
     });
 
     document.getElementById("fetchBtn").addEventListener("click", fetchAll);
+    document.getElementById("prevEventBtn").addEventListener("click", function() { navigateEvent(-1); });
+    document.getElementById("nextEventBtn").addEventListener("click", function() { navigateEvent(1); });
     document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
     document.getElementById("copyBtn").addEventListener("click", copyMessage);
 
     updatePreview();
     fetchAll();
   });
-</script>
 
+</script>
 </body>
 </html>
