@@ -480,7 +480,12 @@
   }
 
   function fetchZmanimForDate(zip, date) {
-    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip + "&m=72&b=22&lg=he&mvch=on&d=on&dt=" + date;
+    // /shabbat endpoint with b=22 returns candle lighting at 22 min before sunset
+    // Use gy/gm/gd params to specify exact date, cfg=json for JSON output
+    var parts = date.split("-");
+    var url = "https://www.hebcal.com/shabbat?cfg=json&zip=" + zip +
+      "&b=22&m=72&lg=he&mvch=on" +
+      "&gy=" + parts[0] + "&gm=" + parseInt(parts[1]) + "&gd=" + parseInt(parts[2]);
     return fetch(url).then(function(r) {
       if (!r.ok) throw new Error("Hebcal returned status " + r.status);
       return r.json();
@@ -732,40 +737,21 @@
     });
   }
   function fetchLocation(prefix, zip, lat, lon) {
-    var candleDateStr = "";
-
     return fetchZmanim(zip)
       .then(function(data) {
         applyZmanim(data, prefix);
-        var cd = window.__candleDates;
-        if (cd && cd.length > 0) candleDateStr = cd[0].substring(0, 10);
       })
       .catch(function(err) {
         setStatus("⚠️ Zmanim fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
       })
       .then(function() {
         return fetchWeather(lat, lon)
-          .then(function(wdata) { applyWeather(wdata, prefix); })
-          .catch(function(err) {
-            setStatus("⚠️ Weather fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
-          });
-      })
-      .then(function() {
-        if (!candleDateStr) return;
-        return fetchSunset(lat, lon, candleDateStr)
-          .then(function(sunset) {
-            // Candle lighting = sunset minus 22 min, always floor to minute
-            var sunsetSecs = sunset.h * 3600 + sunset.m * 60 + (sunset.s || 0);
-            var clSecs = sunsetSecs - 22 * 60;
-            var clTotalMin = Math.floor(clSecs / 60);
-            var clH = Math.floor(clTotalMin / 60) % 12 || 12;
-            var clM = clTotalMin % 60;
-            var clTime = clH + ":" + (clM < 10 ? "0" : "") + clM;
-            document.getElementById("candle" + prefix).value = clTime;
-            setStatus("Done! | Sunset: " + sunset.h + ":" + (sunset.m < 10 ? "0" : "") + sunset.m + ":" + (sunset.s < 10 ? "0" : "") + sunset.s + " → Candle: " + clTime);
+          .then(function(wdata) {
+            applyWeather(wdata, prefix);
+            setStatus("Done! Zmanim via Hebcal (b=22).");
           })
           .catch(function(err) {
-            setStatus("⚠️ Sunset fetch failed: " + err.message + ". Candle time may be off.");
+            setStatus("⚠️ Weather fetch failed (" + prefix + "): " + err.message + ". Fill in manually.");
           });
       });
   }
@@ -1013,7 +999,7 @@ conditionMC + "; Feel: High " + highMC + "°  Low " + lowMC + "°\n";
   document.addEventListener("DOMContentLoaded", function() {
     window.__flower = FLOWERS[Math.floor(Math.random() * FLOWERS.length)];
 
-    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.8";
+    document.getElementById("footer").textContent = "A Davidowitz Project © " + new Date().getFullYear() + " — v1.9";
 
     document.getElementById("quote").value = quotes[Math.floor(Math.random() * quotes.length)];
 
