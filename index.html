@@ -698,7 +698,8 @@
     document.getElementById("emoji" + prefix).value = weatherEmoji(code1);
     document.getElementById("emoji2" + prefix).value = weatherEmoji(code2);
 
-    // Candle lighting = sunset on erev day (idx1) minus 22 minutes
+    // DEBUG - remove after confirming
+    setStatus("DEBUG: candleDate1=" + candleDate1 + " idx1=" + idx1 + " times[0]=" + (times[0]||"?") + " sunset[idx1]=" + (daily.sunset && daily.sunset[idx1] ? daily.sunset[idx1] : "none"));
     if (daily.sunset && daily.sunset[idx1]) {
       var sm = daily.sunset[idx1].match(/T(\d{2}):(\d{2})/);
       if (sm) {
