@@ -114,19 +114,18 @@
     text-overflow: ellipsis;
   }
   .event-date { font-size: 11px; color: #777; margin-top: 2px; }
-  .event-tag {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 2px 7px;
-    border-radius: 10px;
-    margin-top: 3px;
+  .debug-row { text-align: center; margin-top: 10px; }
+  .debug-btn {
+    margin: 0;
+    background: #eee;
+    color: #444;
+    padding: 7px 12px;
+    font-size: 12px;
   }
-  .event-tag.upcoming { background: #d4edda; color: #1a6b30; }
-  .event-tag.future   { background: #e8f4ff; color: #1a4a8a; }
-  .event-tag.past     { background: #f0f0f0; color: #666; }
+  .debug-btn.active {
+    background: #fff3cd;
+    color: #6b5200;
+  }
   .monticello-toggle {
     background: #fff;
     border-radius: 10px;
@@ -226,13 +225,15 @@
 
   <div class="card event-nav">
     <div class="event-nav-row">
-      <button id="prevEventBtn">◀ Previous</button>
+      <button id="prevEventBtn" disabled>◀ Previous</button>
       <div class="event-center">
-        <div class="event-name" id="selectedEventName">Finding next event...</div>
-        <div class="event-date" id="selectedEventDate"></div>
-        <div id="eventTag"></div>
+        <div class="event-name" id="eventModeLabel">Upcoming Event</div>
+        <div class="event-date" id="selectedEventName">Finding next event...</div>
       </div>
-      <button id="nextEventBtn">Next ▶</button>
+      <button id="nextEventBtn" disabled>Next ▶</button>
+    </div>
+    <div class="debug-row">
+      <button class="debug-btn" id="debugModeBtn">Debug Mode</button>
     </div>
   </div>
 
@@ -300,7 +301,8 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.0";
+  var APP_VERSION = "2.9";
+  var DEBUG_CODE = "2026";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -414,7 +416,6 @@
     return String(item && item.date || "").substring(0, 10);
   }
 
-  function formatTimeFromIso(iso) {
   function formatTimeFromIso(iso, roundUp) {
     if (!iso) return "";
     var m = String(iso).match(/T(\d{2}):(\d{2}):?(\d{2})?/);
@@ -424,7 +425,8 @@
     }
     var h = parseInt(m[1], 10);
     var min = parseInt(m[2], 10);
-    if (roundUp) { min += 1; }
+    var sec = parseInt(m[3] || "0", 10);
+    if (roundUp) { min += 1; } // always round up for havdalah — Hebcal strips sub-minute seconds
     if (min >= 60) { min = 0; h += 1; }
     var h12 = h % 12 || 12;
     return h12 + ":" + pad(min);
@@ -446,36 +448,24 @@
   }
 
   function updateEventModeLabel(block) {
-    var nameEl = document.getElementById("selectedEventName");
-    var dateEl = document.getElementById("selectedEventDate");
-    var tagEl  = document.getElementById("eventTag");
+    var mode = document.getElementById("eventModeLabel");
+    var name = document.getElementById("selectedEventName");
     if (!block) {
-      nameEl.textContent = "Finding next event...";
-      dateEl.textContent = "";
-      tagEl.innerHTML = "";
+      mode.textContent = "Upcoming Event";
+      name.textContent = "Finding next event...";
       return;
     }
-    nameEl.textContent = block.displayEnglish || "Shabbos";
-    dateEl.textContent = prettyDateRange(block.startDate, block.endDate);
-    var today = getNYToday();
-    var tagClass, tagText;
-    if (block.startDate > today) {
-      var isNext = state.upcomingBlockKey && blockKey(block) === state.upcomingBlockKey;
-      tagClass = isNext ? "upcoming" : "future";
-      tagText  = isNext ? "Upcoming" : "Future";
-    } else if (block.endDate < today) {
-      tagClass = "past";
-      tagText  = "Past";
-    } else {
-      tagClass = "upcoming";
-      tagText  = "Current";
-    }
-    tagEl.innerHTML = '<span class="event-tag ' + tagClass + '">' + tagText + '</span>';
+    var isUpcoming = state.upcomingBlockKey && blockKey(block) === state.upcomingBlockKey;
+    mode.textContent = isUpcoming ? "Upcoming Event" : "Debug Event";
+    name.textContent = block.displayEnglish || "Shabbos";
   }
 
   function updateDebugControls() {
-    document.getElementById("prevEventBtn").disabled = state.busy;
-    document.getElementById("nextEventBtn").disabled = state.busy;
+    var btn = document.getElementById("debugModeBtn");
+    btn.textContent = state.debugMode ? "Debug Mode: ON" : "Debug Mode";
+    btn.classList.toggle("active", state.debugMode);
+    document.getElementById("prevEventBtn").disabled = state.busy || !state.debugMode || state.selectedIndex < 0;
+    document.getElementById("nextEventBtn").disabled = state.busy || !state.debugMode || state.selectedIndex < 0;
   }
 
   function setBusy(isBusy) {
@@ -483,8 +473,34 @@
     updateDebugControls();
   }
 
-  function goNext() {
+  function toggleDebugMode() {
     if (state.busy) return;
+
+    if (state.debugMode) {
+      state.debugMode = false;
+      var upcomingIndex = state.blocks.findIndex(function(b) { return blockKey(b) === state.upcomingBlockKey; });
+      updateDebugControls();
+      if (upcomingIndex >= 0 && upcomingIndex !== state.selectedIndex) {
+        selectEvent(upcomingIndex);
+      } else {
+        updateEventModeLabel(state.selectedBlock);
+      }
+      return;
+    }
+
+    var entered = window.prompt("Enter debug code:");
+    if (entered === null) return;
+    if (String(entered).trim() !== DEBUG_CODE) {
+      window.alert("Incorrect debug code.");
+      return;
+    }
+
+    state.debugMode = true;
+    updateDebugControls();
+    updateEventModeLabel(state.selectedBlock);
+  }
+
+  function fetchQuotes() {
     if (location.protocol === "file:") return Promise.resolve();
     return fetch("https://quoteslate.vercel.app/api/quotes/random?count=50&maxLength=160")
       .then(function(r) {
@@ -778,33 +794,85 @@
     }).join("");
   }
 
-  function fetchWeather(loc) {
-    var params = new URLSearchParams({
-      latitude: String(loc.lat),
-      longitude: String(loc.lon),
-      daily: "apparent_temperature_max,apparent_temperature_min,weather_code",
-      forecast_days: "16",
-      temperature_unit: "fahrenheit",
-      timezone: TZID
-    });
-    return fetch("https://api.open-meteo.com/v1/forecast?" + params.toString()).then(function(r) {
-      if (!r.ok) throw new Error("Weather returned status " + r.status);
+  // NWS grid endpoint cache so we don't re-fetch points on every call
+  var nwsGridCache = {};
+
+  function fetchNWSGrid(lat, lon) {
+    var key = lat + "," + lon;
+    if (nwsGridCache[key]) return Promise.resolve(nwsGridCache[key]);
+    return fetch("https://api.weather.gov/points/" + lat + "," + lon, {
+      headers: { "User-Agent": "ZmanimGenerator/2.8 (contact@davidowitz.com)" }
+    }).then(function(r) {
+      if (!r.ok) throw new Error("NWS points status " + r.status);
       return r.json();
+    }).then(function(data) {
+      var props = data.properties;
+      if (!props || !props.forecast) throw new Error("No forecast URL in NWS points response");
+      nwsGridCache[key] = { forecastUrl: props.forecast, forecastHourlyUrl: props.forecastHourly };
+      return nwsGridCache[key];
     });
   }
 
+  function fetchWeather(loc) {
+    return fetchNWSGrid(loc.lat, loc.lon).then(function(grid) {
+      return fetch(grid.forecastUrl, {
+        headers: { "User-Agent": "ZmanimGenerator/2.8 (contact@davidowitz.com)" }
+      }).then(function(r) {
+        if (!r.ok) throw new Error("NWS forecast status " + r.status);
+        return r.json();
+      }).then(function(data) {
+        // Convert NWS period-based forecast to daily high/low/condition keyed by date
+        var periods = (data.properties && data.properties.periods) || [];
+        var byDate = {};
+        periods.forEach(function(p) {
+          // startTime like "2026-09-11T06:00:00-04:00"
+          var dateStr = String(p.startTime || "").substring(0, 10);
+          if (!dateStr) return;
+          if (!byDate[dateStr]) byDate[dateStr] = { high: null, low: null, shortForecast: "", isDaytime: false };
+          if (p.isDaytime) {
+            byDate[dateStr].high = p.temperature;
+            byDate[dateStr].shortForecast = p.shortForecast || "";
+            byDate[dateStr].isDaytime = true;
+          } else {
+            byDate[dateStr].low = p.temperature;
+            if (!byDate[dateStr].shortForecast) byDate[dateStr].shortForecast = p.shortForecast || "";
+          }
+        });
+        return { byDate: byDate };
+      });
+    });
+  }
+
+  function nwsConditionToEmoji(shortForecast) {
+    var s = String(shortForecast || "").toLowerCase();
+    if (s.indexOf("thunder") !== -1) return "⛈️|Thunderstorms";
+    if (s.indexOf("snow shower") !== -1 || s.indexOf("snow showers") !== -1) return "🌨️|Snow Showers";
+    if (s.indexOf("snow") !== -1 || s.indexOf("blizzard") !== -1) return "❄️|Snowy";
+    if (s.indexOf("rain") !== -1 || s.indexOf("shower") !== -1 || s.indexOf("drizzle") !== -1) return "🌧️|Rainy";
+    if (s.indexOf("fog") !== -1) return "🌫️|Foggy";
+    if (s.indexOf("cloudy") !== -1 && s.indexOf("partly") !== -1) return "⛅|Partly Cloudy";
+    if (s.indexOf("mostly cloudy") !== -1) return "☁️|Cloudy";
+    if (s.indexOf("cloudy") !== -1) return "☁️|Cloudy";
+    if (s.indexOf("mostly sunny") !== -1 || s.indexOf("mostly clear") !== -1) return "🌤️|Mostly Sunny";
+    if (s.indexOf("partly sunny") !== -1 || s.indexOf("partly clear") !== -1) return "⛅|Partly Cloudy";
+    if (s.indexOf("sunny") !== -1 || s.indexOf("clear") !== -1) return "☀️|Sunny";
+    return "🌤️|Mostly Sunny";
+  }
+
   function mapWeatherToDays(wdata, days) {
-    var daily = wdata && wdata.daily ? wdata.daily : {};
-    var times = daily.time || [];
+    var byDate = wdata && wdata.byDate ? wdata.byDate : {};
     return days.map(function(dateStr) {
-      var idx = times.indexOf(dateStr);
-      if (idx === -1) {
+      var d = byDate[dateStr];
+      if (!d || (d.high === null && d.low === null)) {
         return { date: dateStr, high: "", low: "", emoji: "❔|Forecast unavailable", available: false };
       }
-      var high = daily.apparent_temperature_max && daily.apparent_temperature_max[idx] != null ? Math.round(daily.apparent_temperature_max[idx]) : "";
-      var low = daily.apparent_temperature_min && daily.apparent_temperature_min[idx] != null ? Math.round(daily.apparent_temperature_min[idx]) : "";
-      var code = daily.weather_code && daily.weather_code[idx] != null ? daily.weather_code[idx] : 1;
-      return { date: dateStr, high: high, low: low, emoji: weatherEmoji(code), available: true };
+      return {
+        date: dateStr,
+        high: d.high !== null ? d.high : "",
+        low: d.low !== null ? d.low : "",
+        emoji: nwsConditionToEmoji(d.shortForecast),
+        available: true
+      };
     });
   }
 
@@ -847,7 +915,7 @@
     candles.forEach(function(c, idx) {
       var dateStr = dateOnlyFromItem(c);
       var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
-      rows.push('<div class="zman-row"><label>' + escapeHtml(label) + '</label><input type="text" class="zman-candle" data-date="' + escapeAttr(dateStr) + '" value="' + escapeAttr(formatTimeFromIso(c.date)) + '"></div>');
+      rows.push('<div class="zman-row"><label>' + escapeHtml(label) + '</label><input type="text" class="zman-candle" data-date="' + escapeAttr(dateStr) + '" value="' + escapeAttr(formatTimeFromIso(c.date, false)) + '"></div>');
     });
     var motzeiLabel = baseBlock.isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos";
     var havTime = locBlock.havdalah ? formatTimeFromIso(locBlock.havdalah.date, true) : "";
@@ -948,7 +1016,7 @@
   }
 
   function goNext() {
-    if (state.busy) return;
+    if (state.busy || !state.debugMode) return;
     if (state.selectedIndex < state.blocks.length - 1) {
       selectEvent(state.selectedIndex + 1);
       return;
@@ -968,7 +1036,7 @@
   }
 
   function goPrevious() {
-    if (state.busy) return;
+    if (state.busy || !state.debugMode) return;
     if (state.selectedIndex > 0) {
       selectEvent(state.selectedIndex - 1);
       return;
@@ -1044,7 +1112,7 @@
       rows.forEach(function(w) {
         var suffix = rows.length > 1 ? " - " + dayName(w.date) : "";
         raw += "\n" + w.emoji + " *Weather (" + locationName + suffix + "):*\n" +
-               w.condition + "; Feel: High " + w.high + "°  Low " + w.low + "°\n";
+               w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
       });
     }
 
@@ -1148,6 +1216,7 @@
 
     document.getElementById("prevEventBtn").addEventListener("click", goPrevious);
     document.getElementById("nextEventBtn").addEventListener("click", goNext);
+    document.getElementById("debugModeBtn").addEventListener("click", toggleDebugMode);
     document.getElementById("shuffleBtn").addEventListener("click", shuffleQuote);
     document.getElementById("copyBtn").addEventListener("click", copyMessage);
 
