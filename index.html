@@ -301,7 +301,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "2.8";
+  var APP_VERSION = "2.9";
   var DEBUG_CODE = "2026";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
@@ -426,7 +426,7 @@
     var h = parseInt(m[1], 10);
     var min = parseInt(m[2], 10);
     var sec = parseInt(m[3] || "0", 10);
-    if (roundUp && sec > 0) { min += 1; }
+    if (roundUp) { min += 1; } // always round up for havdalah — Hebcal strips sub-minute seconds
     if (min >= 60) { min = 0; h += 1; }
     var h12 = h % 12 || 12;
     return h12 + ":" + pad(min);
@@ -1112,7 +1112,7 @@
       rows.forEach(function(w) {
         var suffix = rows.length > 1 ? " - " + dayName(w.date) : "";
         raw += "\n" + w.emoji + " *Weather (" + locationName + suffix + "):*\n" +
-               w.condition + "; Feel: High " + w.high + "°  Low " + w.low + "°\n";
+               w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
       });
     }
 
