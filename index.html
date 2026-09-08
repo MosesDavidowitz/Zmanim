@@ -300,8 +300,8 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.1";
-  var CANDLE_MINUTES_BEFORE_SUNSET = 18;
+  var APP_VERSION = "3.2";
+  var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
 
@@ -422,14 +422,8 @@
     }
     var h = parseInt(m[1], 10);
     var min = parseInt(m[2], 10);
-    var sec = parseInt(m[3] || "0", 10);
-    if (roundUp) {
-      // Motzei: always round up by 1 minute
-      min += 1;
-    } else {
-      // Candle lighting: round to nearest minute using seconds
-      if (sec >= 30) min += 1;
-    }
+    if (roundUp) { min += 1; }
+    // Candle lighting: floor (no rounding up) — b=15 offset already accounts for this
     if (min >= 60) { min = 0; h += 1; }
     var h12 = h % 12 || 12;
     return h12 + ":" + pad(min);
