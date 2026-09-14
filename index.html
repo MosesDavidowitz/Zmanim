@@ -300,7 +300,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.2";
+  var APP_VERSION = "3.3";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -634,6 +634,12 @@
 
       var ytItems = block.items.filter(function(it) { return it.category === "holiday" && it.yomtov === true; });
       block.isYomTov = ytItems.length > 0;
+      block.eruvTavshilin = false;
+      if (block.isYomTov && block.endDate) {
+        var endD = parseDateOnly(block.endDate);
+        // Eruv Tavshilin needed when Yom Tov ends on Friday (Shabbos follows immediately)
+        if (endD && endD.getDay() === 5) block.eruvTavshilin = true;
+      }
       block.yomTovHebrewNames = uniqueStrings(ytItems.map(function(it) {
         return normalizeHolidayHebrew(it.hebrew || it.title);
       }));
@@ -1036,6 +1042,10 @@
       "         *" + headerEmoji + " " + headerText + " " + headerEmoji + "*\n" +
       "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n\n" +
       "📜 *" + parshaLabel + ": " + parshaLine + "*\n";
+
+    if (block && block.eruvTavshilin) {
+      raw += "⚠️ *עירוב תבשילין*\n";
+    }
 
     function appendWeather(prefix, locationName) {
       var rows = readWeatherRows(prefix);
