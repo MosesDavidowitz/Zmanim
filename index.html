@@ -300,7 +300,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.3";
+  var APP_VERSION = "3.4";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -617,9 +617,21 @@
         if (!current) current = { candles: [], havdalah: null };
         current.candles.push(it);
       } else if (it.category === "havdalah" && current && current.candles.length) {
-        current.havdalah = it;
-        blocks.push(current);
-        current = null;
+        // Check if another candles item follows this havdalah within 2 hours
+        // (indicates Yom Tov flowing into Shabbos - the havdalah is between days, not end)
+        var havIdx = timed.indexOf(it);
+        var nextItem = havIdx < timed.length - 1 ? timed[havIdx + 1] : null;
+        var isIntermediate = nextItem && nextItem.category === "candles" &&
+          (new Date(nextItem.date) - new Date(it.date)) < 3 * 3600 * 1000;
+
+        if (isIntermediate) {
+          // This is a between-days havdalah - keep collecting candles
+          current.candles.push({ category: "candles", date: it.date, _intermediate: true });
+        } else {
+          current.havdalah = it;
+          blocks.push(current);
+          current = null;
+        }
       }
     });
 
@@ -635,10 +647,21 @@
       var ytItems = block.items.filter(function(it) { return it.category === "holiday" && it.yomtov === true; });
       block.isYomTov = ytItems.length > 0;
       block.eruvTavshilin = false;
-      if (block.isYomTov && block.endDate) {
-        var endD = parseDateOnly(block.endDate);
-        // Eruv Tavshilin needed when Yom Tov ends on Friday (Shabbos follows immediately)
-        if (endD && endD.getDay() === 5) block.eruvTavshilin = true;
+      if (block.isYomTov && block.candles.length > 0) {
+        // Eruv Tavshilin needed when Yom Tov day 1 falls on Friday
+        // i.e. first candle lighting is Thursday evening (startDate = Thursday)
+        // OR when Yom Tov is 2 days and day 2 falls on Friday (candle2 is Thursday night)
+        var startD = parseDateOnly(block.startDate);
+        if (startD) {
+          var day1 = startD.getDay(); // 0=Sun,1=Mon,...,4=Thu,5=Fri
+          // candles on Thursday (4) → Yom Tov day 1 is Friday
+          if (day1 === 4) block.eruvTavshilin = true;
+          // 2-day YT: candles[1] on Thursday → day 2 is Friday  
+          if (!block.eruvTavshilin && block.candles.length >= 2) {
+            var c2date = parseDateOnly(dateOnlyFromItem(block.candles[1]));
+            if (c2date && c2date.getDay() === 4) block.eruvTavshilin = true;
+          }
+        }
       }
       block.yomTovHebrewNames = uniqueStrings(ytItems.map(function(it) {
         return normalizeHolidayHebrew(it.hebrew || it.title);
