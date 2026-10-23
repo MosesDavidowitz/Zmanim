@@ -223,6 +223,7 @@
     <h1>Zmanim Generator</h1>
     <div class="subtitle">Weekly Message Generator</div>
   </div>
+  <div id="zipBar" style="text-align:center;font-size:13px;color:#555;margin:6px 0 10px;"></div>
 
   <div class="card event-nav">
     <div class="event-nav-row">
@@ -300,7 +301,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.6";
+  var APP_VERSION = "3.7";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -309,6 +310,56 @@
     BK: { name: "Brooklyn", lat: 40.6334, lon: -73.9968, zip: "11219" },
     MC: { name: "Monticello", lat: 41.6560, lon: -74.6904, zip: "12701" }
   };
+
+  // Brooklyn zip choice, remembered per device (localStorage). 11219 = Boro Park (default), 11211 = Williamsburg.
+  // A link with ?zip=11219 or ?zip=11211 sets it too.
+  var BK_ZIPS = {
+    "11219": { name: "Brooklyn", lat: 40.6334, lon: -73.9968, zip: "11219", area: "Boro Park" },
+    "11211": { name: "Brooklyn", lat: 40.7081, lon: -73.9571, zip: "11211", area: "Williamsburg" }
+  };
+  var BK_ZIP_KEY = "zmanimBrooklynZip";
+  function savedBkZip() {
+    try {
+      var q = new URLSearchParams(location.search).get("zip");
+      if (q && BK_ZIPS[q]) { localStorage.setItem(BK_ZIP_KEY, q); return q; }
+      var z = localStorage.getItem(BK_ZIP_KEY);
+      return BK_ZIPS[z] ? z : null;
+    } catch (e) { return null; }
+  }
+  function applyBkZip(z) { LOCATIONS.BK = BK_ZIPS[z]; }
+  function renderZipBar(z) {
+    var bar = document.getElementById("zipBar");
+    if (!bar) return;
+    bar.innerHTML = 'Brooklyn zip: <select id="zipSelect">' + Object.keys(BK_ZIPS).map(function(k) {
+      return '<option value="' + k + '"' + (k === z ? ' selected' : '') + '>' + k + ' (' + BK_ZIPS[k].area + ')</option>';
+    }).join("") + '</select>';
+    document.getElementById("zipSelect").addEventListener("change", function(e) {
+      try { localStorage.setItem(BK_ZIP_KEY, e.target.value); } catch (err) {}
+      var u = new URL(location.href); u.searchParams.delete("zip"); location.href = u.toString();
+    });
+  }
+  function chooseBkZipThen(go) {
+    var z = savedBkZip();
+    if (z) { applyBkZip(z); renderZipBar(z); go(); return; }
+    var ov = document.createElement("div");
+    ov.id = "zipChooser";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;";
+    ov.innerHTML = '<div style="background:#fff;border-radius:12px;padding:22px;max-width:320px;text-align:center;font-family:inherit;">' +
+      '<div style="font-weight:700;font-size:17px;margin-bottom:6px;">Choose your Brooklyn zip code</div>' +
+      '<div style="font-size:13px;color:#666;margin-bottom:14px;">Saved on this device. You can change it anytime at the top.</div>' +
+      Object.keys(BK_ZIPS).map(function(k) {
+        return '<button data-zip="' + k + '" style="display:block;width:100%;margin:8px 0;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#f7f7f7;cursor:pointer;">' + k + ' (' + BK_ZIPS[k].area + ')</button>';
+      }).join("") + '</div>';
+    document.body.appendChild(ov);
+    Array.prototype.forEach.call(ov.querySelectorAll("button"), function(b) {
+      b.addEventListener("click", function() {
+        var k = b.getAttribute("data-zip");
+        try { localStorage.setItem(BK_ZIP_KEY, k); } catch (e) {}
+        ov.parentNode.removeChild(ov);
+        applyBkZip(k); renderZipBar(k); go();
+      });
+    });
+  }
 
   var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Shabbos"];
   var FLOWERS = ["🌼", "🌸", "🌺", "🌻", "🌷", "🌹", "🪷", "🌝"];
@@ -1262,7 +1313,7 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", startApp);
+  document.addEventListener("DOMContentLoaded", function() { chooseBkZipThen(startApp); });
 })();
 </script>
 </body>
