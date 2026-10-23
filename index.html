@@ -300,7 +300,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.5";
+  var APP_VERSION = "3.6";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -867,6 +867,61 @@
     return n + "th night";
   }
 
+
+  // ---- Precise sunset (NOAA solar calculator, to the second) ----
+  // Hebcal returns times already cut to the minute; we compute sunset with seconds
+  // ourselves so rounding happens once, the same way the printed luach does it.
+  var SUNSET_ZENITH = 90.833;           // standard: refraction + sun's radius
+  var LUACH_SUNSET_ADJUST_SEC = -25;    // calibrated to the printed Boro Park luach: its shkiah runs ~25 s before NOAA sea-level
+  function preciseSunset(dateStr, lat, lon) {
+    var p = dateStr.split("-").map(Number);
+    var y = p[0], m = p[1], d = p[2];
+    var rad = Math.PI / 180;
+    // Julian day at 0h UT
+    var a = Math.floor((14 - m) / 12), yy = y + 4800 - a, mm = m + 12 * a - 3;
+    var jdn = d + Math.floor((153 * mm + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045;
+    function calc(utMin) {
+      var jd = jdn - 0.5 + utMin / 1440;
+      var t = (jd - 2451545.0) / 36525;
+      var L0 = (280.46646 + t * (36000.76983 + 0.0003032 * t)) % 360;
+      var M = 357.52911 + t * (35999.05029 - 0.0001537 * t);
+      var e = 0.016708634 - t * (0.000042037 + 0.0000001267 * t);
+      var C = Math.sin(M * rad) * (1.914602 - t * (0.004817 + 0.000014 * t)) + Math.sin(2 * M * rad) * (0.019993 - 0.000101 * t) + Math.sin(3 * M * rad) * 0.000289;
+      var trueLong = L0 + C;
+      var omega = 125.04 - 1934.136 * t;
+      var lambda = trueLong - 0.00569 - 0.00478 * Math.sin(omega * rad);
+      var eps0 = 23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60;
+      var eps = eps0 + 0.00256 * Math.cos(omega * rad);
+      var decl = Math.asin(Math.sin(eps * rad) * Math.sin(lambda * rad)) / rad;
+      var yv = Math.pow(Math.tan(eps * rad / 2), 2);
+      var eqTime = 4 * (yv * Math.sin(2 * L0 * rad) - 2 * e * Math.sin(M * rad) + 4 * e * yv * Math.sin(M * rad) * Math.cos(2 * L0 * rad) - 0.5 * yv * yv * Math.sin(4 * L0 * rad) - 1.25 * e * e * Math.sin(2 * M * rad)) / rad;
+      var cosHA = Math.cos(SUNSET_ZENITH * rad) / (Math.cos(lat * rad) * Math.cos(decl * rad)) - Math.tan(lat * rad) * Math.tan(decl * rad);
+      var ha = Math.acos(cosHA) / rad;
+      return 720 - 4 * (lon - ha) - eqTime; // minutes UTC
+    }
+    var ut = calc(1080);
+    ut = calc(ut); ut = calc(ut);           // iterate for accuracy
+    return new Date(Date.UTC(y, m - 1, d) + ut * 60000 + LUACH_SUNSET_ADJUST_SEC * 1000);
+  }
+  function nyClock(dt, mode) {           // mode: "round" | "up"
+    var parts = new Intl.DateTimeFormat("en-US", { timeZone: TZID, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(dt);
+    var h = 0, mi = 0, s = 0;
+    parts.forEach(function(x) { if (x.type === "hour") h = +x.value % 24; if (x.type === "minute") mi = +x.value; if (x.type === "second") s = +x.value; });
+    if ((mode === "up" && s > 0) || (mode === "round" && s >= 30)) mi += 1;
+    if (mi >= 60) { mi -= 60; h += 1; }
+    return (h % 12 || 12) + ":" + pad(mi);
+  }
+  function candleTime(dateStr, loc, hebcalIso) {
+    var ss = preciseSunset(dateStr, loc.lat, loc.lon);
+    // 2nd-night Yom Tov / Shabbos-into-Yom-Tov candles are lit after nightfall, not before sunset
+    if (hebcalIso && new Date(hebcalIso) > ss) return motzeiTime(dateStr, loc);
+    return nyClock(new Date(ss.getTime() - CANDLE_MINUTES_BEFORE_SUNSET * 60000), "round");
+  }
+  function motzeiTime(dateStr, loc) {
+    var ss = preciseSunset(dateStr, loc.lat, loc.lon);
+    return nyClock(new Date(ss.getTime() + HAVDALAH_MINUTES_AFTER_SUNSET * 60000), "up");
+  }
+
   function renderZmanimRows(prefix, locBlock, baseBlock) {
     var wrap = document.getElementById("zmanimRows" + prefix);
     var candles = locBlock.candles || [];
@@ -874,10 +929,10 @@
     candles.forEach(function(c, idx) {
       var dateStr = dateOnlyFromItem(c);
       var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
-      rows.push('<div class="zman-row"><label>' + escapeHtml(label) + '</label><input type="text" class="zman-candle" data-date="' + escapeAttr(dateStr) + '" value="' + escapeAttr(formatTimeFromIso(c.date)) + '"></div>');
+      rows.push('<div class="zman-row"><label>' + escapeHtml(label) + '</label><input type="text" class="zman-candle" data-date="' + escapeAttr(dateStr) + '" value="' + escapeAttr(LOCATIONS[prefix] ? candleTime(dateStr, LOCATIONS[prefix], c.date) : formatTimeFromIso(c.date)) + '"></div>');
     });
     var motzeiLabel = baseBlock.isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos";
-    var havTime = locBlock.havdalah ? formatTimeFromIso(locBlock.havdalah.date, true) : "";
+    var havTime = locBlock.havdalah ? (LOCATIONS[prefix] ? motzeiTime(dateOnlyFromItem(locBlock.havdalah), LOCATIONS[prefix]) : formatTimeFromIso(locBlock.havdalah.date)) : "";
     rows.push('<div class="zman-row"><label>' + motzeiLabel + '</label><input type="text" class="zman-havdalah" value="' + escapeAttr(havTime) + '"></div>');
     wrap.innerHTML = rows.join("");
     bindDynamicPreviewListeners(wrap);
