@@ -127,13 +127,28 @@
   .event-tag.upcoming { background: #d4edda; color: #1a6b30; }
   .event-tag.future   { background: #e8f4ff; color: #1a4a8a; }
   .event-tag.past     { background: #f0f0f0; color: #666; }
-  .monticello-toggle {
-    background: #fff;
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  .zip-card { padding: 12px 16px; }
+  .zip-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: #444; }
+  .zip-line .zip-label { font-weight: 600; color: #555; }
+  .zip-line .zip-value { font-weight: 700; color: #222; }
+  .zip-line button { margin: 0; }
+  .btn-small { background: #eee; color: #333; font-size: 13px; padding: 6px 10px; }
+  .btn-dark { background: #2c3e50; color: #fff; font-size: 13px; padding: 7px 12px; }
+  .btn-add { background: #2c3e50; color: #fff; font-size: 14px; padding: 9px 12px; width: 100%; margin-top: 12px; }
+  .zip-form { display: flex; gap: 8px; align-items: center; width: 100%; }
+  .zip-form input[type="text"] { flex: 1; min-width: 0; font-size: 16px; letter-spacing: 1px; }
+  .zip-form button { margin: 0; flex: 0 0 auto; }
+  .zip-hint { font-size: 11px; color: #888; margin-top: 6px; }
+  .zip-msg { font-size: 12px; min-height: 0; margin-top: 6px; color: #b03a2e; }
+  .zip-msg.ok { color: #1a6b30; }
+  .zip-msg:empty { display: none; }
+  .location-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .location-head .location-title { margin: 0; }
+  .btn-remove {
+    margin: 0; background: #f0f0f0; color: #666; font-size: 15px; line-height: 1;
+    padding: 5px 9px; border-radius: 14px; flex: 0 0 auto;
   }
+  .week-tag { font-size: 10px; font-weight: 700; color: #1a4a8a; background: #e8f4ff; border-radius: 10px; padding: 2px 7px; margin-left: 6px; text-transform: uppercase; letter-spacing: .4px; vertical-align: middle; }
   .checkbox-row {
     display: flex;
     align-items: center;
@@ -223,7 +238,6 @@
     <h1>Zmanim Generator</h1>
     <div class="subtitle">Weekly Message Generator</div>
   </div>
-  <div id="zipBar" style="text-align:center;font-size:13px;color:#555;margin:6px 0 10px;"></div>
 
   <div class="card event-nav">
     <div class="event-nav-row">
@@ -258,28 +272,22 @@
     </div>
   </div>
 
-  <div class="monticello-toggle">
-    <div class="checkbox-row" style="margin-top:0;">
-      <input type="checkbox" id="addMonticello">
-      <label for="addMonticello">Add Monticello</label>
+  <div class="card zip-card" id="zipCard">
+    <div id="zipBar"></div>
+    <div id="addZipArea">
+      <button class="btn-add" id="addZipBtn" type="button">＋ Add zip code (this week only)</button>
     </div>
   </div>
 
   <div class="card" id="brooklynSection">
-    <label class="location-title">📍 Brooklyn</label>
+    <label class="location-title" id="defaultLocTitle">📍 Brooklyn (11219)</label>
     <div class="section-title">Weather</div>
     <div id="weatherRowsBK"></div>
     <div class="section-title">Zmanim</div>
     <div id="zmanimRowsBK"></div>
   </div>
 
-  <div class="card hidden" id="monticelloSection">
-    <label class="location-title">📍 Monticello</label>
-    <div class="section-title">Weather</div>
-    <div id="weatherRowsMC"></div>
-    <div class="section-title">Zmanim</div>
-    <div id="zmanimRowsMC"></div>
-  </div>
+  <div id="extraSections"></div>
 
   <div class="card">
     <label for="quote" style="margin-top:0;">Quote</label>
@@ -301,63 +309,306 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.7";
+  var APP_VERSION = "3.8";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
 
-  var LOCATIONS = {
-    BK: { name: "Brooklyn", lat: 40.6334, lon: -73.9968, zip: "11219" },
-    MC: { name: "Monticello", lat: 41.6560, lon: -74.6904, zip: "12701" }
+  // ---- Locations by zip (v3.8) ----
+  // Known zips keep the exact coordinates v3.7 used, so their times stay identical
+  // and they load without a network lookup. Any other US zip is looked up on zippopotam.us.
+  var KNOWN_ZIPS = {
+    "11219": { name: "Brooklyn", state: "NY", lat: 40.6334, lon: -73.9968, zip: "11219", tz: TZID },
+    "11211": { name: "Brooklyn", state: "NY", lat: 40.7081, lon: -73.9571, zip: "11211", tz: TZID },
+    "12701": { name: "Monticello", state: "NY", lat: 41.6560, lon: -74.6904, zip: "12701", tz: TZID }
   };
+  var FIRST_VISIT_ZIP = "11219";
+  var DEFAULT_ZIP_KEY = "zmanimDefaultZip";
+  var OLD_BK_ZIP_KEY = "zmanimBrooklynZip";   // v3.7 key, migrated on first load
+  var ZIP_CACHE_KEY = "zmanimZipCache";
 
-  // Brooklyn zip choice, remembered per device (localStorage). 11219 = Boro Park (default), 11211 = Williamsburg.
-  // A link with ?zip=11219 or ?zip=11211 sets it too.
-  var BK_ZIPS = {
-    "11219": { name: "Brooklyn", lat: 40.6334, lon: -73.9968, zip: "11219", area: "Boro Park" },
-    "11211": { name: "Brooklyn", lat: 40.7081, lon: -73.9571, zip: "11211", area: "Williamsburg" }
+  var LOCATIONS = { BK: KNOWN_ZIPS[FIRST_VISIT_ZIP] };   // BK = the default location (id kept from v3.7)
+
+  // Timezone from state (+ longitude for the split states). Good for the US; ET is the default.
+  var STATE_TZ = {
+    CT: "America/New_York", DE: "America/New_York", DC: "America/New_York", FL: "America/New_York",
+    GA: "America/New_York", IN: "America/Indiana/Indianapolis", KY: "America/New_York", ME: "America/New_York",
+    MD: "America/New_York", MA: "America/New_York", MI: "America/Detroit", NH: "America/New_York",
+    NJ: "America/New_York", NY: "America/New_York", NC: "America/New_York", OH: "America/New_York",
+    PA: "America/New_York", RI: "America/New_York", SC: "America/New_York", VT: "America/New_York",
+    VA: "America/New_York", WV: "America/New_York", TN: "America/Chicago",
+    AL: "America/Chicago", AR: "America/Chicago", IL: "America/Chicago", IA: "America/Chicago",
+    KS: "America/Chicago", LA: "America/Chicago", MN: "America/Chicago", MS: "America/Chicago",
+    MO: "America/Chicago", NE: "America/Chicago", ND: "America/Chicago", OK: "America/Chicago",
+    SD: "America/Chicago", TX: "America/Chicago", WI: "America/Chicago",
+    AZ: "America/Phoenix", CO: "America/Denver", ID: "America/Boise", MT: "America/Denver",
+    NM: "America/Denver", UT: "America/Denver", WY: "America/Denver",
+    CA: "America/Los_Angeles", NV: "America/Los_Angeles", OR: "America/Los_Angeles", WA: "America/Los_Angeles",
+    AK: "America/Anchorage", HI: "Pacific/Honolulu", PR: "America/Puerto_Rico", VI: "America/St_Thomas",
+    GU: "Pacific/Guam", AS: "Pacific/Pago_Pago", MP: "Pacific/Saipan"
   };
-  var BK_ZIP_KEY = "zmanimBrooklynZip";
-  function savedBkZip() {
-    try {
-      var q = new URLSearchParams(location.search).get("zip");
-      if (q && BK_ZIPS[q]) { localStorage.setItem(BK_ZIP_KEY, q); return q; }
-      var z = localStorage.getItem(BK_ZIP_KEY);
-      return BK_ZIPS[z] ? z : null;
-    } catch (e) { return null; }
+  function tzFor(st, lat, lon) {
+    var tz = STATE_TZ[st] || TZID;
+    if (st === "FL" && lon < -85.2) tz = "America/Chicago";                      // western panhandle
+    if (st === "TN" && lon > -85.3) tz = "America/New_York";                     // east Tennessee
+    if (st === "KY" && lon < -86.0) tz = "America/Chicago";                      // western Kentucky
+    if (st === "IN" && lon < -86.8 && (lat > 41.0 || lat < 38.5)) tz = "America/Chicago";
+    if (st === "MI" && lat > 45.5 && lon < -87.6) tz = "America/Menominee";
+    if (st === "TX" && lon < -104.5) tz = "America/Denver";                      // El Paso
+    if ((st === "NE" && lon < -101.0) || (st === "KS" && lon < -101.5) ||
+        (st === "SD" && lon < -100.5) || (st === "ND" && lon < -101.5 && lat < 47.0)) tz = "America/Denver";
+    if (st === "ID" && lat > 45.6) tz = "America/Los_Angeles";                   // north Idaho
+    if (st === "OR" && lon > -117.7 && lat < 44.6) tz = "America/Boise";         // Malheur County
+    return tz;
   }
-  function applyBkZip(z) { LOCATIONS.BK = BK_ZIPS[z]; }
-  function renderZipBar(z) {
-    var bar = document.getElementById("zipBar");
-    if (!bar) return;
-    bar.innerHTML = 'Brooklyn zip: <select id="zipSelect">' + Object.keys(BK_ZIPS).map(function(k) {
-      return '<option value="' + k + '"' + (k === z ? ' selected' : '') + '>' + k + ' (' + BK_ZIPS[k].area + ')</option>';
-    }).join("") + '</select>';
-    document.getElementById("zipSelect").addEventListener("change", function(e) {
-      try { localStorage.setItem(BK_ZIP_KEY, e.target.value); } catch (err) {}
-      var u = new URL(location.href); u.searchParams.delete("zip"); location.href = u.toString();
+
+  function locLabel(loc) {      // "Brooklyn (11219)", "Miami Beach, FL (33139)"
+    if (loc.name === "Brooklyn" && loc.state === "NY") return "Brooklyn (" + loc.zip + ")";
+    return loc.name + (loc.state ? ", " + loc.state : "") + " (" + loc.zip + ")";
+  }
+  function locFullLabel(loc) {  // "Brooklyn, NY (11219)"
+    return loc.name + (loc.state ? ", " + loc.state : "") + " (" + loc.zip + ")";
+  }
+
+  function readZipCache() {
+    try { return JSON.parse(localStorage.getItem(ZIP_CACHE_KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+  function writeZipCache(loc) {
+    try { var c = readZipCache(); c[loc.zip] = loc; localStorage.setItem(ZIP_CACHE_KEY, JSON.stringify(c)); } catch (e) {}
+  }
+
+  // Resolves to a location object, or rejects with a friendly message.
+  function lookupZip(zip) {
+    zip = String(zip || "").trim();
+    if (!/^\d{5}$/.test(zip)) return Promise.reject(new Error("Please enter a 5-digit US zip code."));
+    if (KNOWN_ZIPS[zip]) return Promise.resolve(KNOWN_ZIPS[zip]);
+    var cached = readZipCache()[zip];
+    if (cached && cached.lat != null && cached.tz) return Promise.resolve(cached);
+    return fetch("https://api.zippopotam.us/us/" + zip).then(function(r) {
+      if (r.status === 404) throw new Error("Couldn't find zip code " + zip + ". Please check it and try again.");
+      if (!r.ok) throw new Error("Zip lookup isn't answering right now (status " + r.status + "). Try again in a minute.");
+      return r.json();
+    }, function() {
+      throw new Error("Couldn't reach the zip lookup. Check the connection and try again.");
+    }).then(function(d) {
+      var p = d && d.places && d.places[0];
+      if (!p) throw new Error("Couldn't find zip code " + zip + ". Please check it and try again.");
+      var lat = parseFloat(p.latitude), lon = parseFloat(p.longitude);
+      if (!isFinite(lat) || !isFinite(lon)) throw new Error("Couldn't find a location for zip code " + zip + ".");
+      var st = p["state abbreviation"] || "";
+      var loc = { name: p["place name"] || zip, state: st, lat: lat, lon: lon, zip: zip, tz: tzFor(st, lat, lon) };
+      writeZipCache(loc);
+      return loc;
     });
   }
-  function chooseBkZipThen(go) {
-    var z = savedBkZip();
-    if (z) { applyBkZip(z); renderZipBar(z); go(); return; }
-    var ov = document.createElement("div");
-    ov.id = "zipChooser";
-    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;";
-    ov.innerHTML = '<div style="background:#fff;border-radius:12px;padding:22px;max-width:320px;text-align:center;font-family:inherit;">' +
-      '<div style="font-weight:700;font-size:17px;margin-bottom:6px;">Choose your Brooklyn zip code</div>' +
-      '<div style="font-size:13px;color:#666;margin-bottom:14px;">Saved on this device. You can change it anytime at the top.</div>' +
-      Object.keys(BK_ZIPS).map(function(k) {
-        return '<button data-zip="' + k + '" style="display:block;width:100%;margin:8px 0;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#f7f7f7;cursor:pointer;">' + k + ' (' + BK_ZIPS[k].area + ')</button>';
-      }).join("") + '</div>';
-    document.body.appendChild(ov);
-    Array.prototype.forEach.call(ov.querySelectorAll("button"), function(b) {
-      b.addEventListener("click", function() {
-        var k = b.getAttribute("data-zip");
-        try { localStorage.setItem(BK_ZIP_KEY, k); } catch (e) {}
-        ov.parentNode.removeChild(ov);
-        applyBkZip(k); renderZipBar(k); go();
+
+  function zipFromUrl() {
+    try {
+      var q = (new URLSearchParams(location.search).get("zip") || "").trim();
+      return /^\d{5}$/.test(q) ? q : null;
+    } catch (e) { return null; }
+  }
+  function savedDefaultZip() {
+    try {
+      var q = zipFromUrl();
+      if (q) { localStorage.setItem(DEFAULT_ZIP_KEY, q); return q; }
+      var z = localStorage.getItem(DEFAULT_ZIP_KEY);
+      if (z && /^\d{5}$/.test(z)) return z;
+      var old = localStorage.getItem(OLD_BK_ZIP_KEY);
+      if (old && /^\d{5}$/.test(old)) { localStorage.setItem(DEFAULT_ZIP_KEY, old); return old; }
+    } catch (e) {
+      var q2 = zipFromUrl();
+      if (q2) return q2;
+    }
+    return FIRST_VISIT_ZIP;
+  }
+
+  var defaultZipNote = "";
+  function initDefaultZip() {
+    var z = savedDefaultZip();
+    return lookupZip(z).then(function(loc) {
+      LOCATIONS.BK = loc;
+    }, function(err) {
+      LOCATIONS.BK = KNOWN_ZIPS[FIRST_VISIT_ZIP];
+      defaultZipNote = "⚠️ " + err.message + " Showing " + locLabel(LOCATIONS.BK) + " for now.";
+    });
+  }
+
+  function renderZipBar(editing, msg, msgOk) {
+    var bar = document.getElementById("zipBar");
+    if (!bar) return;
+    var loc = LOCATIONS.BK;
+    var msgHtml = '<div class="zip-msg' + (msgOk ? ' ok' : '') + '" id="zipMsg">' + escapeHtml(msg || "") + '</div>';
+    if (!editing) {
+      bar.innerHTML = '<div class="zip-line"><span class="zip-label">Default zip code:</span> ' +
+        '<span class="zip-value" id="defaultZipText">' + escapeHtml(locFullLabel(loc)) + '</span>' +
+        '<button class="btn-small" id="zipEditBtn" type="button">Edit</button></div>' + msgHtml;
+      document.getElementById("zipEditBtn").addEventListener("click", function() { renderZipBar(true); });
+    } else {
+      bar.innerHTML = '<div class="zip-line"><span class="zip-label">Default zip code:</span></div>' +
+        '<div class="zip-form" style="margin-top:6px;">' +
+          '<input type="text" id="zipInput" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="postal-code" placeholder="e.g. 11219" value="' + escapeAttr(loc.zip) + '">' +
+          '<button class="btn-dark" id="zipSaveBtn" type="button">Save</button>' +
+          '<button class="btn-small" id="zipCancelBtn" type="button">Cancel</button>' +
+        '</div><div class="zip-hint">Saved on this device. Any US zip code.</div>' + msgHtml;
+      var input = document.getElementById("zipInput");
+      input.focus(); input.select();
+      document.getElementById("zipCancelBtn").addEventListener("click", function() { renderZipBar(false); });
+      document.getElementById("zipSaveBtn").addEventListener("click", saveDefaultZip);
+      input.addEventListener("keydown", function(e) { if (e.key === "Enter") saveDefaultZip(); });
+    }
+  }
+
+  function setZipMsg(msg, ok) {
+    var el = document.getElementById("zipMsg");
+    if (el) { el.textContent = msg || ""; el.className = "zip-msg" + (ok ? " ok" : ""); }
+  }
+
+  function updateDefaultTitle() {
+    var t = document.getElementById("defaultLocTitle");
+    if (t) t.textContent = "📍 " + locLabel(LOCATIONS.BK);
+  }
+
+  function saveDefaultZip() {
+    var input = document.getElementById("zipInput");
+    var btn = document.getElementById("zipSaveBtn");
+    var zip = input ? input.value.trim() : "";
+    if (zip === LOCATIONS.BK.zip) { renderZipBar(false); return; }
+    if (btn) btn.disabled = true;
+    setZipMsg("Looking up " + zip + "...", true);
+    lookupZip(zip).then(function(loc) {
+      try { localStorage.setItem(DEFAULT_ZIP_KEY, loc.zip); } catch (e) {}
+      // A ?zip= in the address would override the saved default on reload, so drop it.
+      try {
+        if (zipFromUrl()) {
+          var u = new URL(location.href); u.searchParams.delete("zip");
+          history.replaceState(null, "", u.toString());
+        }
+      } catch (e) {}
+      LOCATIONS.BK = loc;
+      // If this zip was added for the week, the default now covers it.
+      state.extras = state.extras.filter(function(x) {
+        if (x.loc.zip === loc.zip) { removeExtraSection(x.id); return false; }
+        return true;
       });
+      renderZipBar(false, "Saved. " + locFullLabel(loc) + " is now the default on this device.", true);
+      updateDefaultTitle();
+      reloadForDefaultChange();
+    }, function(err) {
+      if (btn) btn.disabled = false;
+      setZipMsg(err.message, false);
+    });
+  }
+
+  function reloadForDefaultChange() {
+    if (location.protocol === "file:") { updatePreview(); return; }
+    var oldKey = state.selectedBlock ? blockKey(state.selectedBlock) : "";
+    setBusy(true);
+    setStatus("Loading " + locLabel(LOCATIONS.BK) + "...");
+    fetchInitialEvents().then(function() {
+      var idx = state.blocks.findIndex(function(b) { return blockKey(b) === oldKey; });
+      state.selectedIndex = idx >= 0 ? idx : findDefaultBlockIndex();
+      var up = findDefaultBlockIndex();
+      if (up >= 0) state.upcomingBlockKey = blockKey(state.blocks[up]);
+      setBusy(false);
+      if (state.selectedIndex >= 0) loadSelectedEvent();
+    }).catch(function(err) {
+      setBusy(false);
+      setStatus("⚠️ Event fetch failed: " + err.message + ". Reload the page after checking the connection.");
+    });
+  }
+
+  // ---- This-week-only extra zips (not saved) ----
+  var extraSeq = 0;
+  function renderAddZipArea(open, msg) {
+    var area = document.getElementById("addZipArea");
+    if (!open) {
+      area.innerHTML = '<button class="btn-add" id="addZipBtn" type="button">＋ Add zip code (this week only)</button>' +
+        (msg ? '<div class="zip-msg ok" id="addZipMsg">' + escapeHtml(msg) + '</div>' : '');
+      document.getElementById("addZipBtn").addEventListener("click", function() { renderAddZipArea(true); });
+      return;
+    }
+    area.innerHTML = '<div class="zip-form" style="margin-top:12px;">' +
+        '<input type="text" id="addZipInput" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="Zip code, e.g. 33139">' +
+        '<button class="btn-dark" id="addZipGo" type="button">Add</button>' +
+        '<button class="btn-small" id="addZipCancel" type="button">Cancel</button>' +
+      '</div><div class="zip-hint">Adds that location\'s zmanim &amp; weather for this week only. Not saved.</div>' +
+      '<div class="zip-msg" id="addZipMsg"></div>';
+    var input = document.getElementById("addZipInput");
+    input.focus();
+    document.getElementById("addZipCancel").addEventListener("click", function() { renderAddZipArea(false); });
+    document.getElementById("addZipGo").addEventListener("click", addExtraZip);
+    input.addEventListener("keydown", function(e) { if (e.key === "Enter") addExtraZip(); });
+  }
+
+  function addExtraZip() {
+    var input = document.getElementById("addZipInput");
+    var btn = document.getElementById("addZipGo");
+    var msgEl = document.getElementById("addZipMsg");
+    var zip = input ? input.value.trim() : "";
+    function fail(m) { if (btn) btn.disabled = false; msgEl.className = "zip-msg"; msgEl.textContent = m; }
+    if (!/^\d{5}$/.test(zip)) { fail("Please enter a 5-digit US zip code."); return; }
+    if (zip === LOCATIONS.BK.zip) { fail(zip + " is already your default zip code."); return; }
+    if (state.extras.some(function(x) { return x.loc.zip === zip; })) { fail(zip + " is already added."); return; }
+    if (btn) btn.disabled = true;
+    msgEl.className = "zip-msg ok"; msgEl.textContent = "Looking up " + zip + "...";
+    lookupZip(zip).then(function(loc) {
+      if (state.extras.some(function(x) { return x.loc.zip === loc.zip; })) { renderAddZipArea(false); return; }
+      extraSeq += 1;
+      var x = { id: "X" + extraSeq, loc: loc };
+      state.extras.push(x);
+      LOCATIONS[x.id] = loc;
+      createExtraSection(x);
+      renderAddZipArea(false, "Added " + locLabel(loc) + " for this week.");
+      if (state.selectedBlock) {
+        clearLocation(x.id, state.selectedBlock);
+        loadExtraForBlock(x, state.selectedBlock).catch(function(err) {
+          setStatus("⚠️ " + locLabel(loc) + " fetch failed: " + err.message + ". Fill in manually.");
+        });
+      }
+      updatePreview();
+    }, function(err) { fail(err.message); });
+  }
+
+  function createExtraSection(x) {
+    var card = document.createElement("div");
+    card.className = "card extra-section";
+    card.id = "section" + x.id;
+    card.setAttribute("data-zip", x.loc.zip);
+    card.innerHTML = '<div class="location-head"><label class="location-title">📍 ' + escapeHtml(locLabel(x.loc)) +
+        '<span class="week-tag">This week</span></label>' +
+        '<button class="btn-remove" type="button" aria-label="Remove ' + escapeAttr(locLabel(x.loc)) + '" title="Remove">✕</button></div>' +
+      '<div class="section-title">Weather</div><div id="weatherRows' + x.id + '"></div>' +
+      '<div class="section-title">Zmanim</div><div id="zmanimRows' + x.id + '"></div>';
+    document.getElementById("extraSections").appendChild(card);
+    card.querySelector(".btn-remove").addEventListener("click", function() {
+      state.extras = state.extras.filter(function(e) { return e.id !== x.id; });
+      removeExtraSection(x.id);
+      updatePreview();
+    });
+  }
+
+  function removeExtraSection(id) {
+    var el = document.getElementById("section" + id);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    delete LOCATIONS[id];
+  }
+
+  function loadExtraForBlock(x, block) {
+    var start = addDays(block.startDate, -1);
+    var end = addDays(block.endDate, 1);
+    return Promise.all([
+      fetchCalendar(x.loc, start, end),
+      fetchWeather(x.loc).catch(function() { return null; })
+    ]).then(function(results) {
+      if (!document.getElementById("section" + x.id) || state.selectedBlock !== block) return;
+      var locBlock = getLocationBlockFromCalendar(results[0], block);
+      renderZmanimRows(x.id, locBlock, block);
+      var mapped = results[1] ? mapWeatherToDays(results[1], block.days) : block.days.map(function(d) {
+        return { date: d, high: "", low: "", emoji: "❔|Forecast unavailable", available: false };
+      });
+      renderWeatherRows(x.id, mapped);
+      updatePreview();
     });
   }
 
@@ -405,7 +656,8 @@
     selectedBlock: null,
     loadedStart: null,
     loadedEnd: null,
-    locationData: { BK: null, MC: null },
+    locationData: { BK: null },
+    extras: [],
     busy: false,
     upcomingBlockKey: ""
   };
@@ -597,7 +849,7 @@
       geo: "pos",
       latitude: String(loc.lat),
       longitude: String(loc.lon),
-      tzid: TZID,
+      tzid: loc.tz || TZID,
       b: String(CANDLE_MINUTES_BEFORE_SUNSET),
       m: String(HAVDALAH_MINUTES_AFTER_SUNSET)
     });
@@ -863,7 +1115,7 @@
       daily: "apparent_temperature_max,apparent_temperature_min,weather_code",
       forecast_days: "16",
       temperature_unit: "fahrenheit",
-      timezone: TZID
+      timezone: loc.tz || TZID
     });
     return fetch("https://api.open-meteo.com/v1/forecast?" + params.toString()).then(function(r) {
       if (!r.ok) throw new Error("Weather returned status " + r.status);
@@ -954,8 +1206,8 @@
     ut = calc(ut); ut = calc(ut);           // iterate for accuracy
     return new Date(Date.UTC(y, m - 1, d) + ut * 60000 + LUACH_SUNSET_ADJUST_SEC * 1000);
   }
-  function nyClock(dt, mode) {           // mode: "round" | "up"
-    var parts = new Intl.DateTimeFormat("en-US", { timeZone: TZID, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(dt);
+  function nyClock(dt, mode, tz) {       // mode: "round" | "up"; tz: the location's zone (default New York)
+    var parts = new Intl.DateTimeFormat("en-US", { timeZone: tz || TZID, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(dt);
     var h = 0, mi = 0, s = 0;
     parts.forEach(function(x) { if (x.type === "hour") h = +x.value % 24; if (x.type === "minute") mi = +x.value; if (x.type === "second") s = +x.value; });
     if ((mode === "up" && s > 0) || (mode === "round" && s >= 30)) mi += 1;
@@ -966,11 +1218,11 @@
     var ss = preciseSunset(dateStr, loc.lat, loc.lon);
     // 2nd-night Yom Tov / Shabbos-into-Yom-Tov candles are lit after nightfall, not before sunset
     if (hebcalIso && new Date(hebcalIso) > ss) return motzeiTime(dateStr, loc);
-    return nyClock(new Date(ss.getTime() - CANDLE_MINUTES_BEFORE_SUNSET * 60000), "round");
+    return nyClock(new Date(ss.getTime() - CANDLE_MINUTES_BEFORE_SUNSET * 60000), "round", loc.tz);
   }
   function motzeiTime(dateStr, loc) {
     var ss = preciseSunset(dateStr, loc.lat, loc.lon);
-    return nyClock(new Date(ss.getTime() + HAVDALAH_MINUTES_AFTER_SUNSET * 60000), "up");
+    return nyClock(new Date(ss.getTime() + HAVDALAH_MINUTES_AFTER_SUNSET * 60000), "up", loc.tz);
   }
 
   function renderZmanimRows(prefix, locBlock, baseBlock) {
@@ -1017,7 +1269,7 @@
     var block = state.blocks[state.selectedIndex];
     if (!block) return Promise.resolve();
     state.selectedBlock = block;
-    state.locationData = { BK: null, MC: null };
+    state.locationData = { BK: null };
     populateEventHeader(block);
     setBusy(true);
     setStatus("Loading " + block.displayEnglish + "...");
@@ -1029,9 +1281,7 @@
       return { date: d, high: "", low: "", emoji: "❔|Forecast unavailable", available: false };
     }));
 
-    if (document.getElementById("addMonticello").checked) {
-      clearLocation("MC", block);
-    }
+    state.extras.forEach(function(x) { clearLocation(x.id, block); });
     updatePreview();
 
     var tasks = [];
@@ -1041,9 +1291,9 @@
         .catch(function() { /* leave unavailable placeholders */ })
     );
 
-    if (document.getElementById("addMonticello").checked) {
-      tasks.push(loadMonticelloForBlock(block));
-    }
+    state.extras.forEach(function(x) {
+      tasks.push(loadExtraForBlock(x, block).catch(function() { /* leave placeholders; editable */ }));
+    });
 
     return Promise.all(tasks).then(function() {
       setLoadedStatus(block);
@@ -1052,24 +1302,6 @@
     }).catch(function(err) {
       setStatus("⚠️ " + err.message + ". You can still edit the fields manually.");
       setBusy(false);
-      updatePreview();
-    });
-  }
-
-  function loadMonticelloForBlock(block) {
-    var start = addDays(block.startDate, -1);
-    var end = addDays(block.endDate, 1);
-    return Promise.all([
-      fetchCalendar(LOCATIONS.MC, start, end),
-      fetchWeather(LOCATIONS.MC).catch(function() { return null; })
-    ]).then(function(results) {
-      var mcBlock = getLocationBlockFromCalendar(results[0], block);
-      state.locationData.MC = mcBlock;
-      renderZmanimRows("MC", mcBlock, block);
-      var mapped = results[1] ? mapWeatherToDays(results[1], block.days) : block.days.map(function(d) {
-        return { date: d, high: "", low: "", emoji: "❔|Forecast unavailable", available: false };
-      });
-      renderWeatherRows("MC", mapped);
       updatePreview();
     });
   }
@@ -1164,7 +1396,10 @@
     var headerEmoji = isYomTov ? getYomTovEmoji(parsha) : (window.__flower || "🌼");
     var parshaLabel = isYomTov ? "Yom Tov" : "Parsha";
     var quote = document.getElementById("quote").value || "____";
-    var addMonticello = document.getElementById("addMonticello").checked;
+    // One location: exactly the v3.7 wording ("Weather (Brooklyn):").
+    // Several: every location carries Place (zip), default first.
+    var multi = state.extras.length > 0;
+    var places = [{ prefix: "BK", loc: LOCATIONS.BK }].concat(state.extras.map(function(x) { return { prefix: x.id, loc: x.loc }; }));
 
     var raw =
       "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\n" +
@@ -1176,21 +1411,21 @@
       raw += "⚠️ Reminder: עירוב תבשילין\n";
     }
 
-    function appendWeather(prefix, locationName) {
+    function appendWeather(prefix, loc) {
       var rows = readWeatherRows(prefix);
       rows.forEach(function(w) {
         var suffix = rows.length > 1 ? " - " + dayName(w.date) : "";
-        raw += "\n" + w.emoji + " *Weather (" + locationName + suffix + "):*\n" +
+        var head = multi ? "Weather – " + locLabel(loc) + suffix : "Weather (" + loc.name + suffix + ")";
+        raw += "\n" + w.emoji + " *" + head + ":*\n" +
                w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
       });
     }
 
-    appendWeather("BK", "Brooklyn");
-    if (addMonticello) appendWeather("MC", "Monticello");
+    places.forEach(function(p) { appendWeather(p.prefix, p.loc); });
 
-    function appendZmanim(prefix, locationName) {
+    function appendZmanim(prefix, loc) {
       var z = readZmanim(prefix);
-      raw += "\n🕰 *Zmanim (" + locationName + "):*\n";
+      raw += "\n🕰 *" + (multi ? "Zmanim – " + locLabel(loc) : "Zmanim (" + loc.name + ")") + ":*\n";
       z.candles.forEach(function(c, idx) {
         var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
         raw += "• " + label + ": " + c.time + "  \n";
@@ -1198,8 +1433,7 @@
       raw += "• " + (isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos") + ": " + z.havdalah + "  \n";
     }
 
-    appendZmanim("BK", "Brooklyn");
-    if (addMonticello) appendZmanim("MC", "Monticello");
+    places.forEach(function(p) { appendZmanim(p.prefix, p.loc); });
 
     raw += "\n💬 *Quote:*\n> " + quote;
     window.__rawMessage = raw;
@@ -1261,27 +1495,9 @@
       updatePreview();
     });
 
-    document.getElementById("addMonticello").addEventListener("change", function() {
-      var section = document.getElementById("monticelloSection");
-      if (this.checked) {
-        section.classList.remove("hidden");
-        if (state.selectedBlock) {
-          clearLocation("MC", state.selectedBlock);
-          setStatus("Fetching Monticello zmanim & weather...");
-          loadMonticelloForBlock(state.selectedBlock)
-            .then(function() {
-              setLoadedStatus(state.selectedBlock);
-              updatePreview();
-            })
-            .catch(function(err) {
-              setStatus("⚠️ Monticello fetch failed: " + err.message + ". Fill in manually.");
-            });
-        }
-      } else {
-        section.classList.add("hidden");
-      }
-      updatePreview();
-    });
+    renderZipBar(false, defaultZipNote, false);
+    updateDefaultTitle();
+    renderAddZipArea(false);
 
     document.getElementById("prevEventBtn").addEventListener("click", goPrevious);
     document.getElementById("nextEventBtn").addEventListener("click", goNext);
@@ -1313,7 +1529,7 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function() { chooseBkZipThen(startApp); });
+  document.addEventListener("DOMContentLoaded", function() { initDefaultZip().then(startApp); });
 })();
 </script>
 </body>
