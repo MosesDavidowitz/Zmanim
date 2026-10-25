@@ -309,7 +309,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.9";
+  var APP_VERSION = "3.10";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -1174,23 +1174,30 @@
   // ---- Precise sunset (NOAA solar calculator, to the second) ----
   // Hebcal returns times already cut to the minute; we compute sunset with seconds
   // ourselves so rounding happens once, the same way the printed luach does it.
-  var SUNSET_ZENITH = 90.833;           // standard: refraction + sun's radius
-  var LUACH_SUNSET_ADJUST_SEC = -25;    // every zip except 11219: NOAA sea-level sunset 25 s earlier (unchanged since v3.6)
-  // v3.9: Boro Park (11219) follows the printed luach (Tomche Shabbos 5787) for the whole year.
-  // Fitted on all 121 printed candle/motzei times, Sep 2026 - Oct 2027 (121/121 match): the luach's
-  // shkiah behaves like NOAA sunset at latitude 40.718 (NYC) with zenith 90.9, 34 s earlier.
-  // That latitude is what makes summer ~30 s later than the old fixed -25 s, while fall/winter stay put.
-  var LUACH_PROFILES = {
-    "11219": { lat: 40.718, zenith: 90.9, adjustSec: -34 }
-  };
+  // v3.10: ONE rule for every zip code (no per-zip special cases).
+  // The luach's sunset (shkiah) is fitted on all 121 printed candle/motzei times of the Boro Park/Flatbush
+  // luach (Tomche Shabbos 5787, Sep 2026 - Oct 2027, 121/121 match): NOAA sunset with a sunset angle of
+  // 90.9 degrees, 34 s earlier, computed at ONE New York City reference point (lat 40.718, lon -73.9968).
+  // A printed NYC luach is calculated for one city point, so EVERY New York City zip (all five boroughs)
+  // uses that same point and gets the same times. Every zip outside NYC uses the same angle and correction
+  // at its own coordinates.
+  var LUACH_ZENITH = 90.9;              // sunset angle the luach uses
+  var LUACH_ADJUST_SEC = -34;           // seconds, applied to every location
+  var NYC_REF_POINT = { lat: 40.718, lon: -73.9968 };
+  // NYC zips by prefix: Manhattan 100-102, Staten Island 103, Bronx 104, Queens 111/113/114/116 (+11004, 11005), Brooklyn 112.
+  var NYC_ZIP_PREFIXES = ["100", "101", "102", "103", "104", "111", "112", "113", "114", "116"];
+  function isNycZip(zip) {
+    zip = String(zip || "");
+    if (!/^\d{5}$/.test(zip)) return false;
+    return NYC_ZIP_PREFIXES.indexOf(zip.slice(0, 3)) >= 0 || zip === "11004" || zip === "11005";
+  }
   function locSunset(dateStr, loc) {
-    var p = loc && LUACH_PROFILES[loc.zip];
-    if (p) return preciseSunset(dateStr, p.lat, loc.lon, p.zenith, p.adjustSec);
+    if (loc && isNycZip(loc.zip)) return preciseSunset(dateStr, NYC_REF_POINT.lat, NYC_REF_POINT.lon);
     return preciseSunset(dateStr, loc.lat, loc.lon);
   }
-  function preciseSunset(dateStr, lat, lon, zenith, adjustSec) {
-    var zen = zenith == null ? SUNSET_ZENITH : zenith;
-    var adj = adjustSec == null ? LUACH_SUNSET_ADJUST_SEC : adjustSec;
+  function preciseSunset(dateStr, lat, lon) {
+    var zen = LUACH_ZENITH;
+    var adj = LUACH_ADJUST_SEC;
     var p = dateStr.split("-").map(Number);
     var y = p[0], m = p[1], d = p[2];
     var rad = Math.PI / 180;
