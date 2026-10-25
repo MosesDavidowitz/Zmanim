@@ -309,7 +309,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.10";
+  var APP_VERSION = "3.10.1";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -362,8 +362,7 @@
     return tz;
   }
 
-  function locLabel(loc) {      // "Brooklyn (11219)", "Miami Beach, FL (33139)"
-    if (loc.name === "Brooklyn" && loc.state === "NY") return "Brooklyn (" + loc.zip + ")";
+  function locLabel(loc) {      // "Brooklyn, NY (11219)", "Miami Beach, FL (33139)"
     return loc.name + (loc.state ? ", " + loc.state : "") + " (" + loc.zip + ")";
   }
   function locFullLabel(loc) {  // "Brooklyn, NY (11219)"
