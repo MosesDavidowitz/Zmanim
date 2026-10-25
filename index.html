@@ -309,7 +309,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.8";
+  var APP_VERSION = "3.9";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -1175,8 +1175,22 @@
   // Hebcal returns times already cut to the minute; we compute sunset with seconds
   // ourselves so rounding happens once, the same way the printed luach does it.
   var SUNSET_ZENITH = 90.833;           // standard: refraction + sun's radius
-  var LUACH_SUNSET_ADJUST_SEC = -25;    // calibrated to the printed Boro Park luach: its shkiah runs ~25 s before NOAA sea-level
-  function preciseSunset(dateStr, lat, lon) {
+  var LUACH_SUNSET_ADJUST_SEC = -25;    // every zip except 11219: NOAA sea-level sunset 25 s earlier (unchanged since v3.6)
+  // v3.9: Boro Park (11219) follows the printed luach (Tomche Shabbos 5787) for the whole year.
+  // Fitted on all 121 printed candle/motzei times, Sep 2026 - Oct 2027 (121/121 match): the luach's
+  // shkiah behaves like NOAA sunset at latitude 40.718 (NYC) with zenith 90.9, 34 s earlier.
+  // That latitude is what makes summer ~30 s later than the old fixed -25 s, while fall/winter stay put.
+  var LUACH_PROFILES = {
+    "11219": { lat: 40.718, zenith: 90.9, adjustSec: -34 }
+  };
+  function locSunset(dateStr, loc) {
+    var p = loc && LUACH_PROFILES[loc.zip];
+    if (p) return preciseSunset(dateStr, p.lat, loc.lon, p.zenith, p.adjustSec);
+    return preciseSunset(dateStr, loc.lat, loc.lon);
+  }
+  function preciseSunset(dateStr, lat, lon, zenith, adjustSec) {
+    var zen = zenith == null ? SUNSET_ZENITH : zenith;
+    var adj = adjustSec == null ? LUACH_SUNSET_ADJUST_SEC : adjustSec;
     var p = dateStr.split("-").map(Number);
     var y = p[0], m = p[1], d = p[2];
     var rad = Math.PI / 180;
@@ -1198,13 +1212,13 @@
       var decl = Math.asin(Math.sin(eps * rad) * Math.sin(lambda * rad)) / rad;
       var yv = Math.pow(Math.tan(eps * rad / 2), 2);
       var eqTime = 4 * (yv * Math.sin(2 * L0 * rad) - 2 * e * Math.sin(M * rad) + 4 * e * yv * Math.sin(M * rad) * Math.cos(2 * L0 * rad) - 0.5 * yv * yv * Math.sin(4 * L0 * rad) - 1.25 * e * e * Math.sin(2 * M * rad)) / rad;
-      var cosHA = Math.cos(SUNSET_ZENITH * rad) / (Math.cos(lat * rad) * Math.cos(decl * rad)) - Math.tan(lat * rad) * Math.tan(decl * rad);
+      var cosHA = Math.cos(zen * rad) / (Math.cos(lat * rad) * Math.cos(decl * rad)) - Math.tan(lat * rad) * Math.tan(decl * rad);
       var ha = Math.acos(cosHA) / rad;
       return 720 - 4 * (lon - ha) - eqTime; // minutes UTC
     }
     var ut = calc(1080);
     ut = calc(ut); ut = calc(ut);           // iterate for accuracy
-    return new Date(Date.UTC(y, m - 1, d) + ut * 60000 + LUACH_SUNSET_ADJUST_SEC * 1000);
+    return new Date(Date.UTC(y, m - 1, d) + ut * 60000 + adj * 1000);
   }
   function nyClock(dt, mode, tz) {       // mode: "round" | "up"; tz: the location's zone (default New York)
     var parts = new Intl.DateTimeFormat("en-US", { timeZone: tz || TZID, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(dt);
@@ -1215,13 +1229,13 @@
     return (h % 12 || 12) + ":" + pad(mi);
   }
   function candleTime(dateStr, loc, hebcalIso) {
-    var ss = preciseSunset(dateStr, loc.lat, loc.lon);
+    var ss = locSunset(dateStr, loc);
     // 2nd-night Yom Tov / Shabbos-into-Yom-Tov candles are lit after nightfall, not before sunset
     if (hebcalIso && new Date(hebcalIso) > ss) return motzeiTime(dateStr, loc);
     return nyClock(new Date(ss.getTime() - CANDLE_MINUTES_BEFORE_SUNSET * 60000), "round", loc.tz);
   }
   function motzeiTime(dateStr, loc) {
-    var ss = preciseSunset(dateStr, loc.lat, loc.lon);
+    var ss = locSunset(dateStr, loc);
     return nyClock(new Date(ss.getTime() + HAVDALAH_MINUTES_AFTER_SUNSET * 60000), "up", loc.tz);
   }
 
@@ -1415,17 +1429,15 @@
       var rows = readWeatherRows(prefix);
       rows.forEach(function(w) {
         var suffix = rows.length > 1 ? " - " + dayName(w.date) : "";
-        var head = multi ? "Weather – " + locLabel(loc) + suffix : "Weather (" + loc.name + suffix + ")";
-        raw += "\n" + w.emoji + " *" + head + ":*\n" +
-               w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
+        // v3.8.2: no emoji on the heading; the condition emoji starts the detail line.
+        raw += "\n*Weather (" + loc.name + suffix + "):*\n" +
+               w.emoji + " " + w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
       });
     }
 
-    places.forEach(function(p) { appendWeather(p.prefix, p.loc); });
-
     function appendZmanim(prefix, loc) {
       var z = readZmanim(prefix);
-      raw += "\n🕰 *" + (multi ? "Zmanim – " + locLabel(loc) : "Zmanim (" + loc.name + ")") + ":*\n";
+      raw += "\n🕰 *Zmanim (" + loc.name + "):*\n";
       z.candles.forEach(function(c, idx) {
         var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
         raw += "• " + label + ": " + c.time + "  \n";
@@ -1433,7 +1445,46 @@
       raw += "• " + (isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos") + ": " + z.havdalah + "  \n";
     }
 
-    places.forEach(function(p) { appendZmanim(p.prefix, p.loc); });
+    // v3.8.1: several locations -> one heading per section, locations as a
+    // dash list with the place in bold (Moses, Oct 24).
+    function waLabel(loc) {
+      return String(locLabel(loc)).replace(/[*_~`]/g, "");
+    }
+
+    function appendWeatherList() {
+      // v3.8.2: plain "*Weather:*" heading; each place on its own bold line,
+      // each weather line underneath starting with its own condition emoji.
+      raw += "\n*Weather:*\n";
+      places.forEach(function(p) {
+        var rows = readWeatherRows(p.prefix);
+        raw += "- *" + waLabel(p.loc) + ":*\n";
+        rows.forEach(function(w) {
+          raw += "   " + w.emoji + " " + (rows.length > 1 ? dayName(w.date) + ": " : "") +
+                 w.condition + "; High " + w.high + "°  Low " + w.low + "°\n";
+        });
+      });
+    }
+
+    function appendZmanimList() {
+      raw += "\n🕰 *Zmanim:*\n";
+      places.forEach(function(p) {
+        var z = readZmanim(p.prefix);
+        raw += "- *" + waLabel(p.loc) + ":*\n";
+        z.candles.forEach(function(c, idx) {
+          var label = idx === 0 ? "Candle lighting" : "Candle lighting " + ordinalNight(idx + 1);
+          raw += "   • " + label + ": " + c.time + "  \n";
+        });
+        raw += "   • " + (isYomTov ? "Motzei Yom Tov" : "Motzei Shabbos") + ": " + z.havdalah + "  \n";
+      });
+    }
+
+    if (multi) {
+      appendWeatherList();
+      appendZmanimList();
+    } else {
+      places.forEach(function(p) { appendWeather(p.prefix, p.loc); });
+      places.forEach(function(p) { appendZmanim(p.prefix, p.loc); });
+    }
 
     raw += "\n💬 *Quote:*\n> " + quote;
     window.__rawMessage = raw;
