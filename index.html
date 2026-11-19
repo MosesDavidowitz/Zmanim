@@ -142,6 +142,11 @@
   .zip-msg { font-size: 12px; min-height: 0; margin-top: 6px; color: #b03a2e; }
   .zip-msg.ok { color: #1a6b30; }
   .zip-msg:empty { display: none; }
+  .saved-zip-list { margin-top: 10px; }
+  .saved-zip-option { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid #eee; }
+  .saved-zip-option input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+  .saved-zip-name { flex: 1; min-width: 0; font-size: 14px; color: #333; }
+  .saved-zip-remove { margin: 0; padding: 5px 9px; background: #f0f0f0; color: #666; font-size: 12px; }
   .location-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .location-head .location-title { margin: 0; }
   .btn-remove {
@@ -275,7 +280,7 @@
   <div class="card zip-card" id="zipCard">
     <div id="zipBar"></div>
     <div id="addZipArea">
-      <button class="btn-add" id="addZipBtn" type="button">＋ Add zip code (this week only)</button>
+      <button class="btn-add" id="addZipBtn" type="button">＋ Add zip code</button>
     </div>
   </div>
 
@@ -309,7 +314,7 @@
 (function() {
   "use strict";
 
-  var APP_VERSION = "3.10.1";
+  var APP_VERSION = "3.10.2";
   var CANDLE_MINUTES_BEFORE_SUNSET = 15;
   var HAVDALAH_MINUTES_AFTER_SUNSET = 72;
   var TZID = "America/New_York";
@@ -326,6 +331,7 @@
   var DEFAULT_ZIP_KEY = "zmanimDefaultZip";
   var OLD_BK_ZIP_KEY = "zmanimBrooklynZip";   // v3.7 key, migrated on first load
   var ZIP_CACHE_KEY = "zmanimZipCache";
+  var SAVED_EXTRA_ZIPS_KEY = "zmanimSavedExtraZips";
 
   var LOCATIONS = { BK: KNOWN_ZIPS[FIRST_VISIT_ZIP] };   // BK = the default location (id kept from v3.7)
 
@@ -487,7 +493,12 @@
       LOCATIONS.BK = loc;
       // If this zip was added for the week, the default now covers it.
       state.extras = state.extras.filter(function(x) {
-        if (x.loc.zip === loc.zip) { removeExtraSection(x.id); return false; }
+        if (x.loc.zip === loc.zip) {
+          removeExtraSection(x.id);
+          var option = document.querySelector('.saved-zip-option[data-zip="' + loc.zip + '"] .saved-zip-check');
+          if (option) option.checked = false;
+          return false;
+        }
         return true;
       });
       renderZipBar(false, "Saved. " + locFullLabel(loc) + " is now the default on this device.", true);
@@ -517,27 +528,76 @@
     });
   }
 
-  // ---- This-week-only extra zips (not saved) ----
+  // ---- Saved extra zip choices (selected locations are active for this message) ----
   var extraSeq = 0;
   function renderAddZipArea(open, msg) {
     var area = document.getElementById("addZipArea");
+    var saved = readSavedExtraZips();
+    var listHtml = saved.length ? '<div class="saved-zip-list" aria-label="Saved zip codes">' + saved.map(function(loc) {
+      var active = state.extras.some(function(x) { return x.loc.zip === loc.zip; });
+      return '<div class="saved-zip-option" data-zip="' + escapeAttr(loc.zip) + '">' +
+        '<input type="checkbox" class="saved-zip-check" aria-label="Include ' + escapeAttr(locLabel(loc)) + ' in this message"' + (active ? ' checked' : '') + '>' +
+        '<span class="saved-zip-name">' + escapeHtml(locLabel(loc)) + '</span>' +
+        '<button class="saved-zip-remove" type="button" aria-label="Remove ' + escapeAttr(locLabel(loc)) + '" title="Remove">Remove</button>' +
+      '</div>';
+    }).join("") + '</div>' : '';
     if (!open) {
-      area.innerHTML = '<button class="btn-add" id="addZipBtn" type="button">＋ Add zip code (this week only)</button>' +
+      area.innerHTML = '<button class="btn-add" id="addZipBtn" type="button">＋ Add zip code</button>' + listHtml +
         (msg ? '<div class="zip-msg ok" id="addZipMsg">' + escapeHtml(msg) + '</div>' : '');
       document.getElementById("addZipBtn").addEventListener("click", function() { renderAddZipArea(true); });
+      bindSavedZipOptions();
       return;
     }
     area.innerHTML = '<div class="zip-form" style="margin-top:12px;">' +
         '<input type="text" id="addZipInput" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="Zip code, e.g. 33139">' +
         '<button class="btn-dark" id="addZipGo" type="button">Add</button>' +
         '<button class="btn-small" id="addZipCancel" type="button">Cancel</button>' +
-      '</div><div class="zip-hint">Adds that location\'s zmanim &amp; weather for this week only. Not saved.</div>' +
-      '<div class="zip-msg" id="addZipMsg"></div>';
+      '</div><div class="zip-hint">Saved on this device. Check a saved zip code to include its zmanim and weather in this message.</div>' +
+      '<div class="zip-msg" id="addZipMsg"></div>' + listHtml;
     var input = document.getElementById("addZipInput");
     input.focus();
     document.getElementById("addZipCancel").addEventListener("click", function() { renderAddZipArea(false); });
     document.getElementById("addZipGo").addEventListener("click", addExtraZip);
     input.addEventListener("keydown", function(e) { if (e.key === "Enter") addExtraZip(); });
+    bindSavedZipOptions();
+  }
+
+  function readSavedExtraZips() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(SAVED_EXTRA_ZIPS_KEY) || "[]");
+      return Array.isArray(saved) ? saved.filter(function(loc) {
+        return loc && /^\d{5}$/.test(String(loc.zip || "")) && loc.name && isFinite(Number(loc.lat)) && isFinite(Number(loc.lon));
+      }) : [];
+    } catch (e) { return []; }
+  }
+
+  function writeSavedExtraZips(saved) {
+    try { localStorage.setItem(SAVED_EXTRA_ZIPS_KEY, JSON.stringify(saved)); } catch (e) {}
+  }
+
+  function bindSavedZipOptions() {
+    Array.prototype.forEach.call(document.querySelectorAll(".saved-zip-option"), function(row) {
+      var zip = row.getAttribute("data-zip");
+      var checkbox = row.querySelector(".saved-zip-check");
+      var remove = row.querySelector(".saved-zip-remove");
+      checkbox.addEventListener("change", function() {
+        var loc = readSavedExtraZips().filter(function(item) { return item.zip === zip; })[0];
+        if (!loc) return;
+        if (checkbox.checked) activateExtraZip(loc);
+        else deactivateExtraZip(zip);
+      });
+      remove.addEventListener("click", function() {
+        var label = locLabelFromSaved(zip);
+        deactivateExtraZip(zip);
+        writeSavedExtraZips(readSavedExtraZips().filter(function(item) { return item.zip !== zip; }));
+        renderAddZipArea(false, "Removed " + label + ".");
+      });
+    });
+  }
+
+  function locLabelFromSaved(zip) {
+    var loc = readSavedExtraZips().filter(function(item) { return item.zip === zip; })[0];
+    return loc ? locLabel(loc) : zip;
   }
 
   function addExtraZip() {
@@ -548,25 +608,40 @@
     function fail(m) { if (btn) btn.disabled = false; msgEl.className = "zip-msg"; msgEl.textContent = m; }
     if (!/^\d{5}$/.test(zip)) { fail("Please enter a 5-digit US zip code."); return; }
     if (zip === LOCATIONS.BK.zip) { fail(zip + " is already your default zip code."); return; }
-    if (state.extras.some(function(x) { return x.loc.zip === zip; })) { fail(zip + " is already added."); return; }
+    if (readSavedExtraZips().some(function(x) { return x.zip === zip; })) { fail(zip + " is already in your saved zip codes."); return; }
     if (btn) btn.disabled = true;
     msgEl.className = "zip-msg ok"; msgEl.textContent = "Looking up " + zip + "...";
     lookupZip(zip).then(function(loc) {
-      if (state.extras.some(function(x) { return x.loc.zip === loc.zip; })) { renderAddZipArea(false); return; }
-      extraSeq += 1;
-      var x = { id: "X" + extraSeq, loc: loc };
-      state.extras.push(x);
-      LOCATIONS[x.id] = loc;
-      createExtraSection(x);
-      renderAddZipArea(false, "Added " + locLabel(loc) + " for this week.");
-      if (state.selectedBlock) {
-        clearLocation(x.id, state.selectedBlock);
-        loadExtraForBlock(x, state.selectedBlock).catch(function(err) {
-          setStatus("⚠️ " + locLabel(loc) + " fetch failed: " + err.message + ". Fill in manually.");
-        });
-      }
-      updatePreview();
+      var saved = readSavedExtraZips();
+      if (saved.some(function(x) { return x.zip === loc.zip; })) { renderAddZipArea(false); return; }
+      saved.push(loc);
+      writeSavedExtraZips(saved);
+      renderAddZipArea(false, "Saved " + locLabel(loc) + ". Check it when you want to include it in a message.");
     }, function(err) { fail(err.message); });
+  }
+
+  function activateExtraZip(loc) {
+    if (!loc || loc.zip === LOCATIONS.BK.zip || state.extras.some(function(x) { return x.loc.zip === loc.zip; })) return;
+    extraSeq += 1;
+    var x = { id: "X" + extraSeq, loc: loc };
+    state.extras.push(x);
+    LOCATIONS[x.id] = loc;
+    createExtraSection(x);
+    if (state.selectedBlock) {
+      clearLocation(x.id, state.selectedBlock);
+      loadExtraForBlock(x, state.selectedBlock).catch(function(err) {
+        setStatus("⚠️ " + locLabel(loc) + " fetch failed: " + err.message + ". Fill in manually.");
+      });
+    }
+    updatePreview();
+  }
+
+  function deactivateExtraZip(zip) {
+    var found = state.extras.filter(function(x) { return x.loc.zip === zip; })[0];
+    if (!found) return;
+    state.extras = state.extras.filter(function(x) { return x.id !== found.id; });
+    removeExtraSection(found.id);
+    updatePreview();
   }
 
   function createExtraSection(x) {
@@ -575,15 +650,15 @@
     card.id = "section" + x.id;
     card.setAttribute("data-zip", x.loc.zip);
     card.innerHTML = '<div class="location-head"><label class="location-title">📍 ' + escapeHtml(locLabel(x.loc)) +
-        '<span class="week-tag">This week</span></label>' +
+        '</label>' +
         '<button class="btn-remove" type="button" aria-label="Remove ' + escapeAttr(locLabel(x.loc)) + '" title="Remove">✕</button></div>' +
       '<div class="section-title">Weather</div><div id="weatherRows' + x.id + '"></div>' +
       '<div class="section-title">Zmanim</div><div id="zmanimRows' + x.id + '"></div>';
     document.getElementById("extraSections").appendChild(card);
     card.querySelector(".btn-remove").addEventListener("click", function() {
-      state.extras = state.extras.filter(function(e) { return e.id !== x.id; });
-      removeExtraSection(x.id);
-      updatePreview();
+      deactivateExtraZip(x.loc.zip);
+      var option = document.querySelector('.saved-zip-option[data-zip="' + x.loc.zip + '"] .saved-zip-check');
+      if (option) option.checked = false;
     });
   }
 
